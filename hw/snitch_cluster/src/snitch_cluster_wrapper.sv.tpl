@@ -279,6 +279,7 @@ module ${cfg['name']}_wrapper (
     .ICacheLineCount (${cfg['pkg_name']}::ICacheLineCount),
     .ICacheSets (${cfg['pkg_name']}::ICacheSets),
     .VMSupport (${int(cfg['vm_support'])}),
+    .EnableDMAMulticast (${int(cfg['enable_multicast'])}),
     .RVE (${core_isa('e')}),
     .RVF (${core_isa('f')}),
     .RVD (${core_isa('d')}),
