@@ -51,6 +51,7 @@ APPS  = sw/apps/nop
 APPS += sw/apps/blas/axpy
 APPS += sw/apps/blas/gemm
 APPS += sw/apps/blas/gemv
+APPS += sw/apps/blas/gemm_v2
 APPS += sw/apps/blas/dot
 APPS += sw/apps/blas/syrk
 APPS += sw/apps/dnn/batchnorm
