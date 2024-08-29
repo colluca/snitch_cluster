@@ -11,9 +11,6 @@ TB_DIR   ?= $(SNITCH_ROOT)/target/common/test
 UTIL_DIR ?= $(SNITCH_ROOT)/util
 LOGS_DIR  = $(SIM_DIR)/logs
 
-# Files
-BENDER_LOCK ?= $(ROOT)/Bender.lock
-
 # SEPP packages
 QUESTA_SEPP    ?=
 VCS_SEPP       ?=
