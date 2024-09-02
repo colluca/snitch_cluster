@@ -19,13 +19,15 @@ ifeq ($(SELECT_RUNTIME), banshee)
 $(APP)_RISCV_CFLAGS += -DBIST
 endif
 
-$(APP)_LIBS += $(SNRT_TARGET_DIR)/build/libsnRuntime.a
+$(APP)_LIBS += $(SNRT_BUILDDIR)/libsnRuntime.a
 
 $(APP)_LIBDIRS  = $(dir $($(APP)_LIBS))
 $(APP)_LIBNAMES = $(patsubst lib%,%,$(notdir $(basename $($(APP)_LIBS))))
 
+MEMORY_LD ?= $(ROOT)/target/snitch_cluster/sw/runtime/memory.ld
+
 $(APP)_RISCV_LDFLAGS += $(RISCV_LDFLAGS)
-$(APP)_RISCV_LDFLAGS += -L$(abspath $(SNRT_TARGET_DIR)/..)
+$(APP)_RISCV_LDFLAGS += -L$(dir $(MEMORY_LD))
 $(APP)_RISCV_LDFLAGS += -T$(abspath $(SNRT_DIR)/base.ld)
 $(APP)_RISCV_LDFLAGS += $(addprefix -L,$($(APP)_LIBDIRS))
 $(APP)_RISCV_LDFLAGS += $(addprefix -l,$($(APP)_LIBNAMES))
