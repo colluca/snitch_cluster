@@ -19,18 +19,21 @@ ifeq ($(SELECT_RUNTIME), banshee)
 $(APP)_RISCV_CFLAGS += -DBIST
 endif
 
-$(APP)_LIBS += $(SNRT_BUILDDIR)/libsnRuntime.a
+$(APP)_LIBS += $(SNRT_LIB)
 
 $(APP)_LIBDIRS  = $(dir $($(APP)_LIBS))
 $(APP)_LIBNAMES = $(patsubst lib%,%,$(notdir $(basename $($(APP)_LIBS))))
 
+BASE_LD    = $(SNRT_DIR)/base.ld
 MEMORY_LD ?= $(ROOT)/target/snitch_cluster/sw/runtime/memory.ld
 
 $(APP)_RISCV_LDFLAGS += $(RISCV_LDFLAGS)
 $(APP)_RISCV_LDFLAGS += -L$(dir $(MEMORY_LD))
-$(APP)_RISCV_LDFLAGS += -T$(abspath $(SNRT_DIR)/base.ld)
+$(APP)_RISCV_LDFLAGS += -T$(BASE_LD)
 $(APP)_RISCV_LDFLAGS += $(addprefix -L,$($(APP)_LIBDIRS))
 $(APP)_RISCV_LDFLAGS += $(addprefix -l,$($(APP)_LIBNAMES))
+
+LD_DEPS = $(MEMORY_LD) $(BASE_LD) $($(APP)_LIBS)
 
 ###########
 # Outputs #
@@ -74,7 +77,7 @@ $(ELF): RISCV_LDFLAGS := $($(APP)_RISCV_LDFLAGS)
 $(DEP): $(SRCS) | $($(APP)_BUILD_DIR) $($(APP)_HEADERS)
 	$(RISCV_CC) $(RISCV_CFLAGS) -MM -MT '$(ELF)' $< > $@
 
-$(ELF): $(SRCS) $(DEP) $($(APP)_LIBS) | $($(APP)_BUILD_DIR)
+$(ELF): $(SRCS) $(DEP) $(LD_DEPS) | $($(APP)_BUILD_DIR)
 	$(RISCV_CC) $(RISCV_CFLAGS) $(RISCV_LDFLAGS) $(SRCS) -o $@
 
 $(DUMP): $(ELF) | $($(APP)_BUILD_DIR)
