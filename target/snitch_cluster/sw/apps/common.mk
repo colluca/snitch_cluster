@@ -33,7 +33,7 @@ $(APP)_RISCV_LDFLAGS += -T$(BASE_LD)
 $(APP)_RISCV_LDFLAGS += $(addprefix -L,$($(APP)_LIBDIRS))
 $(APP)_RISCV_LDFLAGS += $(addprefix -l,$($(APP)_LIBNAMES))
 
-LD_DEPS = $(MEMORY_LD) $(BASE_LD) $($(APP)_LIBS)
+LD_DEPS += $(MEMORY_LD) $(BASE_LD) $($(APP)_LIBS)
 
 ###########
 # Outputs #
