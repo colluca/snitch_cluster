@@ -8,7 +8,7 @@
 # Build variables #
 ###################
 
-$(APP)_HEADERS += $(TARGET_C_HDRS)
+$(APP)_HEADERS += $(SNRT_HAL_HDRS)
 
 $(APP)_INCDIRS += $(SNRT_INCDIRS)
 $(APP)_INCDIRS += $(ROOT)/sw/deps/riscv-opcodes

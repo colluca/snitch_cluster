@@ -69,7 +69,7 @@ $(TESTS_BUILDDIR)/%.elf: $(TESTS_SRCDIR)/%.c $(LD_DEPS) $(TESTS_BUILDDIR)/%.d | 
 $(TESTS_BUILDDIR)/%.dump: $(TESTS_BUILDDIR)/%.elf | $(TESTS_BUILDDIR)
 	$(RISCV_OBJDUMP) $(RISCV_OBJDUMP_FLAGS) $< > $@
 
-$(TEST_DEPS): | $(TARGET_C_HDRS)
+$(TEST_DEPS): | $(SNRT_HAL_HDRS)
 
 ifneq ($(filter-out clean%,$(MAKECMDGOALS)),)
 -include $(DEP)
