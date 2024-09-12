@@ -83,7 +83,8 @@ void atax_job(void *args) {
     size_t size_tmp = M * sizeof(double);
     size_t size_y_tile = size_y / snrt_cluster_num();
     local_A = snrt_l1_alloc_cluster_local(size_A, sizeof(double));
-    local_x = snrt_l1_alloc_cluster_local(size_x, sizeof(double));
+    // Align to 4KB boundary to avoid DMA transfer fragmentation
+    local_x = snrt_l1_alloc_cluster_local(size_x, 4096);
     local_y = snrt_l1_alloc_cluster_local(size_y_tile, sizeof(double));
     local_tmp = snrt_l1_alloc_cluster_local(size_tmp, sizeof(double));
 
