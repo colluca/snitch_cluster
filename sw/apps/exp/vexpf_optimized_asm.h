@@ -1,12 +1,8 @@
 #define FP0_ASM_BODY                   \
-    "flw      fa1,  0(%[input])    \n" \
-    "flw      fa5,  4(%[input])    \n" \
-    "flw      fa6,  8(%[input])    \n" \
-    "flw      fa7, 12(%[input])    \n" \
-    "fcvt.d.s fa1, fa1             \n" \
-    "fcvt.d.s fa5, fa5             \n" \
-    "fcvt.d.s fa6, fa6             \n" \
-    "fcvt.d.s fa7, fa7             \n" \
+    "fld      fa1,  0(%[input])    \n" \
+    "fld      fa5,  8(%[input])    \n" \
+    "fld      fa6, 16(%[input])    \n" \
+    "fld      fa7, 24(%[input])    \n" \
     "fmul.d   fa3, %[InvLn2N], fa1 \n" \
     "fmul.d   ft3, %[InvLn2N], fa5 \n" \
     "fmul.d   ft4, %[InvLn2N], fa6 \n" \
@@ -107,11 +103,7 @@
     "fmul.d   fs0, fs0, ft9          \n" \
     "fmul.d   fs1, fs1, ft10         \n" \
     "fmul.d   fs2, fs2, ft11         \n" \
-    "fcvt.s.d fa4, fa4               \n" \
-    "fcvt.s.d fs0, fs0               \n" \
-    "fcvt.s.d fs1, fs1               \n" \
-    "fcvt.s.d fs2, fs2               \n" \
-    "fsw      fa4,  0(%[output])     \n" \
-    "fsw      fs0,  4(%[output])     \n" \
-    "fsw      fs1,  8(%[output])     \n" \
-    "fsw      fs2, 12(%[output])     \n"
+    "fsd      fa4,  0(%[output])     \n" \
+    "fsd      fs0,  8(%[output])     \n" \
+    "fsd      fs1, 16(%[output])     \n" \
+    "fsd      fs2, 24(%[output])     \n"

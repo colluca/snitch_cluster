@@ -16,6 +16,15 @@
 
 static inline void vexpf_optimized(float *a, float *b) {
 
+    // Allocate input and output arrays of type double
+    double *input = ALLOCATE_BUFFER(double, LEN);
+    double *output = ALLOCATE_BUFFER(double, LEN);
+
+    // Convert inputs to double
+    for (int i = 0; i < LEN; i++) {
+        input[i] = (double)a[i];
+    }
+
     // Derived parameters
     unsigned int n_batches = LEN / BATCH_SIZE;
     unsigned int n_iterations = n_batches + 2;
@@ -43,7 +52,7 @@ static inline void vexpf_optimized(float *a, float *b) {
     unsigned int int_t_idx = 0;
     unsigned int fp1_kd_idx = 0;
     unsigned int fp1_t_idx = 0;
-    float    *fp0_a_ptr = a;
+    double   *fp0_a_ptr = input;
     double   *fp0_k_ptr;
     double   *fp0_z_ptr;
     uint64_t *int_ki_ptr;
@@ -51,7 +60,7 @@ static inline void vexpf_optimized(float *a, float *b) {
     double   *fp1_kd_ptr;
     uint64_t *fp1_t_ptr;
     double   *fp1_z_ptr;
-    float    *fp1_b_ptr = b;
+    double   *fp1_b_ptr = output;
 
     // Exponential function constants
     uint32_t EXP2F_TABLE_BITS = 5;
@@ -62,8 +71,6 @@ static inline void vexpf_optimized(float *a, float *b) {
 
     // Iterate over batches
     for (int iteration = 0; iteration < n_iterations; iteration++) {
-
-        snrt_mcycle();
 
         // FP0 phase
         if (iteration < n_iterations - 2) {
@@ -78,9 +85,9 @@ static inline void vexpf_optimized(float *a, float *b) {
                 asm volatile(
                     FP0_ASM_BODY
                     :
-                    : [input] "r" (fp0_a_ptr + i), [InvLn2N] "f" (InvLn2N),
-                      [SHIFT] "f" (SHIFT), [ki] "r" (fp0_k_ptr + i),
-                      [z] "r" (fp0_z_ptr + i)
+                    : [input] "r" (fp0_a_ptr + i), [ki] "r" (fp0_k_ptr + i),
+                      [z] "r" (fp0_z_ptr + i),
+                      [InvLn2N] "f" (InvLn2N), [SHIFT] "f" (SHIFT)
                     : "memory", "fa1", "fa3", "fa5",  "fa6",  "fa7", "ft3",
                       "ft4", "ft5"
                 );
@@ -157,5 +164,10 @@ static inline void vexpf_optimized(float *a, float *b) {
 
         // Synchronize FP and integer threads
         snrt_fpu_fence();
+    }
+
+    // Convert outputs to float
+    for (int i = 0; i < LEN; i++) {
+        b[i] = (float)output[i];
     }
 }

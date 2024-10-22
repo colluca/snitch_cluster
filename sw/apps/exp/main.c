@@ -8,7 +8,7 @@
 #include "snrt.h"
 
 #ifndef LEN
-#define LEN 8
+#define LEN 32
 #endif
 
 #ifndef FUNC_PTR
@@ -46,10 +46,10 @@ int main() {
 
     // Calculate exponential of input array using reference implementation
     tstart = snrt_mcycle();
-    for (int i = 0; i < LEN; i++) {
-        b_golden[i] = expf(a[i]);
-    }
-    // vexpf_baseline(a, b_golden);
+    // for (int i = 0; i < LEN; i++) {
+    //     b_golden[i] = expf(a[i]);
+    // }
+    vexpf_baseline(a, b_golden);
     tend = snrt_mcycle();
     printf("Reference cycles: %d\n", tend - tstart);
 
