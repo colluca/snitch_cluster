@@ -1,24 +1,16 @@
 #define FP0_ASM_BODY                   \
-    "fld      fa1,  0(%[input])    \n" \
-    "fld      fa5,  8(%[input])    \n" \
-    "fld      fa6, 16(%[input])    \n" \
-    "fld      fa7, 24(%[input])    \n" \
-    "fmul.d   fa3, %[InvLn2N], fa1 \n" \
-    "fmul.d   ft3, %[InvLn2N], fa5 \n" \
-    "fmul.d   ft4, %[InvLn2N], fa6 \n" \
-    "fmul.d   ft5, %[InvLn2N], fa7 \n" \
-    "fadd.d   fa1, fa3, %[SHIFT]   \n" \
-    "fadd.d   fa5, ft3, %[SHIFT]   \n" \
-    "fadd.d   fa6, ft4, %[SHIFT]   \n" \
-    "fadd.d   fa7, ft5, %[SHIFT]   \n" \
-    "fsd      fa1,  0(%[ki])       \n" \
-    "fsd      fa5,  8(%[ki])       \n" \
-    "fsd      fa6, 16(%[ki])       \n" \
-    "fsd      fa7, 24(%[ki])       \n" \
-    "fsd      fa3,  0(%[z])        \n" \
-    "fsd      ft3,  8(%[z])        \n" \
-    "fsd      ft4, 16(%[z])        \n" \
-    "fsd      ft5, 24(%[z])        \n"
+    "fmul.d   fa3, %[InvLn2N], ft0 \n" \
+    "fmul.d   ft3, %[InvLn2N], ft0 \n" \
+    "fmul.d   ft4, %[InvLn2N], ft0 \n" \
+    "fmul.d   ft5, %[InvLn2N], ft0 \n" \
+    "fadd.d   ft1, fa3, %[SHIFT]   \n" \
+    "fadd.d   ft1, ft3, %[SHIFT]   \n" \
+    "fadd.d   ft1, ft4, %[SHIFT]   \n" \
+    "fadd.d   ft1, ft5, %[SHIFT]   \n" \
+    "fmv.d    ft2, fa3             \n" \
+    "fmv.d    ft2, ft3             \n" \
+    "fmv.d    ft2, ft4             \n" \
+    "fmv.d    ft2, ft5             \n"
 
 #define INT_ASM_BODY        \
     "lw   a0,  0(%[ki]) \n" \

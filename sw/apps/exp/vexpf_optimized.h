@@ -79,19 +79,24 @@ static inline void vexpf_optimized(float *a, float *b) {
             fp0_k_ptr = kd_buffers[fp0_k_idx];
             fp0_z_ptr = z_buffers[fp0_k_idx];
 
+            // Configure SSRs
+            snrt_ssr_loop_1d(SNRT_SSR_DM_ALL, BATCH_SIZE, sizeof(double));
+            snrt_ssr_read(SNRT_SSR_DM0, SNRT_SSR_1D, fp0_a_ptr);
+            snrt_ssr_write(SNRT_SSR_DM1, SNRT_SSR_1D, fp0_k_ptr);
+            snrt_ssr_write(SNRT_SSR_DM2, SNRT_SSR_1D, fp0_z_ptr);
+            snrt_ssr_enable();
+
             // FP0 computation
             int unroll_factor = 4;
             for (int i = 0; i < BATCH_SIZE; i += unroll_factor) {
                 asm volatile(
                     FP0_ASM_BODY
                     :
-                    : [input] "r" (fp0_a_ptr + i), [ki] "r" (fp0_k_ptr + i),
-                      [z] "r" (fp0_z_ptr + i),
-                      [InvLn2N] "f" (InvLn2N), [SHIFT] "f" (SHIFT)
-                    : "memory", "fa1", "fa3", "fa5",  "fa6",  "fa7", "ft3",
-                      "ft4", "ft5"
+                    : [InvLn2N] "f" (InvLn2N), [SHIFT] "f" (SHIFT)
+                    : "memory", "ft0", "ft1", "ft2", "fa3", "ft3", "ft4", "ft5"
                 );
             }
+            snrt_ssr_disable();
 
             // Increment input data pointer for next iteration
             fp0_a_ptr += BATCH_SIZE;

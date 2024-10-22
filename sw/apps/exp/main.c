@@ -8,7 +8,7 @@
 #include "snrt.h"
 
 #ifndef LEN
-#define LEN 32
+#define LEN 8
 #endif
 
 #ifndef FUNC_PTR
