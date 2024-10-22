@@ -46,6 +46,14 @@ static inline void vexpf_optimized(float *a, float *b) {
     t_buffers[0] = ALLOCATE_BUFFER(uint64_t, BATCH_SIZE);
     t_buffers[1] = ALLOCATE_BUFFER(uint64_t, BATCH_SIZE);
 
+    // // TODO remove
+    // DUMP((uint32_t)ki_buffers[0]);
+    // DUMP((uint32_t)ki_buffers[1]);
+    // DUMP((uint32_t)ki_buffers[2]);
+    // DUMP((uint32_t)z_buffers[0]);
+    // DUMP((uint32_t)z_buffers[1]);
+    // DUMP((uint32_t)z_buffers[2]);
+
     // Define buffer pointers for every phase (fp0, int and fp1)
     unsigned int fp0_k_idx = 0;
     unsigned int int_ki_idx = 0;
@@ -140,22 +148,39 @@ static inline void vexpf_optimized(float *a, float *b) {
             fp1_t_ptr = t_buffers[fp1_t_idx];
             fp1_z_ptr = z_buffers[fp1_kd_idx];
 
-            // FP1 computation
+            // Configure SSRs
             int unroll_factor = 4;
+            snrt_ssr_loop_3d(
+                SNRT_SSR_DM0,
+                unroll_factor,
+                2,
+                BATCH_SIZE / unroll_factor,
+                sizeof(double),
+                N_KI_KD_BUFFERS * BATCH_SIZE * sizeof(double),
+                sizeof(double) * unroll_factor
+            );
+            snrt_ssr_loop_1d(SNRT_SSR_DM1, BATCH_SIZE, sizeof(double));
+            snrt_ssr_loop_1d(SNRT_SSR_DM2, BATCH_SIZE, sizeof(double));
+            snrt_ssr_read(SNRT_SSR_DM0, SNRT_SSR_3D, fp1_kd_ptr);
+            snrt_ssr_read(SNRT_SSR_DM1, SNRT_SSR_1D, fp1_t_ptr);
+            snrt_ssr_write(SNRT_SSR_DM2, SNRT_SSR_1D, fp1_b_ptr);
+            snrt_ssr_enable();
+
+            // FP1 computation
             for (int i = 0; i < BATCH_SIZE; i += unroll_factor) {
                 asm volatile(
                     FP1_ASM_BODY
                     :
-                    : [kd] "r" (fp1_kd_ptr + i), [SHIFT] "f" (SHIFT),
+                    : [SHIFT] "f" (SHIFT),
                       [C0] "f" (C[0]), [C1] "f" (C[1]),
-                      [C2] "f" (C[2]), [C3] "f" (C[3]),
-                      [t] "r" (fp1_t_ptr + i), [output] "r" (fp1_b_ptr + i),
-                      [z] "r" (fp1_z_ptr + i)
+                      [C2] "f" (C[2]), [C3] "f" (C[3])
                     : "memory", "fa0", "fa1", "fa2", "fa3", "fa4", "fa5",
                       "fa6", "fa7", "ft3", "ft4", "ft5", "ft6", "ft7", "ft8",
-                      "ft9", "ft10", "ft11", "fs0", "fs1", "fs2"
+                      "ft9", "ft10", "ft11", "fs0", "fs1", "fs2", "ft0", "ft1",
+                      "ft2"
                 );
             }
+            snrt_ssr_disable();
 
             // Increment input data pointer for next iteration
             fp1_b_ptr += BATCH_SIZE;

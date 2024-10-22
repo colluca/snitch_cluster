@@ -55,30 +55,18 @@
     "sw   a5, 28(%[t])  \n"
 
 #define FP1_ASM_BODY                     \
-    "fld      fa1,  0(%[kd])         \n" \
-    "fld      fa5,  8(%[kd])         \n" \
-    "fld      fa6, 16(%[kd])         \n" \
-    "fld      fa7, 24(%[kd])         \n" \
-    "fld      fa3,  0(%[z])          \n" \
-    "fld      ft3,  8(%[z])          \n" \
-    "fld      ft4, 16(%[z])          \n" \
-    "fld      ft5, 24(%[z])          \n" \
-    "fsub.d   fa2, fa1, %[SHIFT]     \n" \
-    "fsub.d   ft6, fa5, %[SHIFT]     \n" \
-    "fsub.d   ft7, fa6, %[SHIFT]     \n" \
-    "fsub.d   ft8, fa7, %[SHIFT]     \n" \
-    "fsub.d   fa3, fa3, fa2          \n" \
-    "fsub.d   ft3, ft3, ft6          \n" \
-    "fsub.d   ft4, ft4, ft7          \n" \
-    "fsub.d   ft5, ft5, ft8          \n" \
+    "fsub.d   fa2, ft0, %[SHIFT]     \n" \
+    "fsub.d   ft6, ft0, %[SHIFT]     \n" \
+    "fsub.d   ft7, ft0, %[SHIFT]     \n" \
+    "fsub.d   ft8, ft0, %[SHIFT]     \n" \
+    "fsub.d   fa3, ft0, fa2          \n" \
+    "fsub.d   ft3, ft0, ft6          \n" \
+    "fsub.d   ft4, ft0, ft7          \n" \
+    "fsub.d   ft5, ft0, ft8          \n" \
     "fmadd.d  fa2, %[C0], fa3, %[C1] \n" \
     "fmadd.d  ft6, %[C0], ft3, %[C1] \n" \
     "fmadd.d  ft7, %[C0], ft4, %[C1] \n" \
     "fmadd.d  ft8, %[C0], ft5, %[C1] \n" \
-    "fld      fa0,   0(%[t])         \n" \
-    "fld      ft9,   8(%[t])         \n" \
-    "fld      ft10, 16(%[t])         \n" \
-    "fld      ft11, 24(%[t])         \n" \
     "fmadd.d  fa4, %[C2], fa3, %[C3] \n" \
     "fmadd.d  fs0, %[C2], ft3, %[C3] \n" \
     "fmadd.d  fs1, %[C2], ft4, %[C3] \n" \
@@ -91,11 +79,7 @@
     "fmadd.d  fs0, ft6, fa5, fs0     \n" \
     "fmadd.d  fs1, ft7, fa6, fs1     \n" \
     "fmadd.d  fs2, ft8, fa7, fs2     \n" \
-    "fmul.d   fa4, fa4, fa0          \n" \
-    "fmul.d   fs0, fs0, ft9          \n" \
-    "fmul.d   fs1, fs1, ft10         \n" \
-    "fmul.d   fs2, fs2, ft11         \n" \
-    "fsd      fa4,  0(%[output])     \n" \
-    "fsd      fs0,  8(%[output])     \n" \
-    "fsd      fs1, 16(%[output])     \n" \
-    "fsd      fs2, 24(%[output])     \n"
+    "fmul.d   ft2, fa4, ft1          \n" \
+    "fmul.d   ft2, fs0, ft1          \n" \
+    "fmul.d   ft2, fs1, ft1          \n" \
+    "fmul.d   ft2, fs2, ft1          \n"
