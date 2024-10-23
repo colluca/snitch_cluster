@@ -26,6 +26,8 @@ __thread uint64_t T[64] = {
     0x3fef5818dcfba487, 0x3fef7c97337b9b5f, 0x3fefa4afa2a490da, 0x3fefd0765b6e4540,
 };
 
+double a[LEN], b_golden[LEN], b_actual[LEN];
+
 #include "vexpf_naive.h"
 #include "vexpf_baseline.h"
 #include "vexpf_optimized.h"
@@ -34,22 +36,17 @@ int main() {
     uint32_t tstart, tend;
 
     // Initialize input array
-    float *a = snrt_l1_alloc_cluster_local(sizeof(float) * LEN, sizeof(float));
     if (snrt_cluster_core_idx() == 0)
         for (int i = 0; i < LEN; i++)
             a[i] = (float)i / LEN;
 
-    // Allocate output arrays
-    float *b_golden = snrt_l1_alloc_cluster_local(sizeof(float) * LEN, sizeof(float));
-    float *b_actual = snrt_l1_alloc_cluster_local(sizeof(float) * LEN, sizeof(float));
-
     // Calculate exponential of input array using reference implementation
     if (snrt_cluster_core_idx() == 0) {
         tstart = snrt_mcycle();
-        // for (int i = 0; i < LEN; i++) {
-        //     b_golden[i] = expf(a[i]);
-        // }
-        vexpf_baseline(a, b_golden);
+        for (int i = 0; i < LEN; i++) {
+            b_golden[i] = (double)expf((float)a[i]);
+        }
+        // vexpf_baseline(a, b_golden);
         tend = snrt_mcycle();
         // printf("Reference cycles: %d\n", tend - tstart);
     }
@@ -66,8 +63,9 @@ int main() {
     if (snrt_cluster_core_idx() == 0) {
         uint32_t n_err = LEN;
         for (int i = 0; i < LEN; i++) {
-            if (b_golden[i] != b_actual[i])
-                printf("Error: b_golden[%d] = %f, b_actual[%d] = %f\n", i, b_golden[i], i, b_actual[i]);
+            if ((float)b_golden[i] != (float)b_actual[i])
+                printf("Error: b_golden[%d] = %f, b_actual[%d] = %f\n", i,
+                    (float)b_golden[i], i, (float)b_actual[i]);
             else
                 n_err--;
         }

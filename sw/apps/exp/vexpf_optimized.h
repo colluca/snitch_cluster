@@ -14,15 +14,7 @@
 
 #include "vexpf_optimized_asm.h"
 
-double input[LEN];
-double output[LEN];
-
-static inline void vexpf_optimized(float *a, float *b) {
-
-    // Convert inputs to double
-    if (snrt_cluster_core_idx() == 0)
-        for (int i = 0; i < LEN; i++)
-            input[i] = (double)a[i];
+static inline void vexpf_optimized(double *a, double *b) {
 
     // Derived parameters
     unsigned int n_batches = LEN / BATCH_SIZE;
@@ -97,7 +89,7 @@ static inline void vexpf_optimized(float *a, float *b) {
                 // DMA transfer
                 snrt_dma_load_1d_tile(
                     dma_a_ptr,
-                    input,
+                    a,
                     iteration,
                     BATCH_SIZE,
                     sizeof(double)
@@ -116,7 +108,7 @@ static inline void vexpf_optimized(float *a, float *b) {
 
                 // DMA transfer
                 snrt_dma_store_1d_tile(
-                    output,
+                    b,
                     dma_b_ptr,
                     iteration - 4,
                     BATCH_SIZE,
@@ -319,9 +311,4 @@ static inline void vexpf_optimized(float *a, float *b) {
         // Synchronize cores
         snrt_cluster_hw_barrier();
     }
-
-    // Convert outputs to float
-    if (snrt_cluster_core_idx() == 0)
-        for (int i = 0; i < LEN; i++)
-            b[i] = (float)output[i];
 }
