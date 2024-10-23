@@ -80,6 +80,8 @@ static inline void vexpf_optimized(float *a, float *b) {
     double SHIFT = 0x1.8p+52;
     double C[4] = {0x1.c6af84b912394p-5/N/N/N, 0x1.ebfce50fac4f3p-3/N/N, 0x1.62e42ff0c52d6p-1/N, 1.0};
 
+    snrt_cluster_hw_barrier();
+
     // Iterate over batches
     for (int iteration = 0; iteration < n_iterations; iteration++) {
 
@@ -133,7 +135,7 @@ static inline void vexpf_optimized(float *a, float *b) {
         if (snrt_cluster_core_idx() == 0) {
 
             // FP0 phase
-            if (iteration > 0 && iteration < n_iterations - 3) {
+            if (iteration > 0 && iteration < 3 && iteration < n_iterations - 3) {
 
                 // Index buffers
                 fp0_a_ptr = a_buffers[fp0_a_idx];
@@ -154,7 +156,7 @@ static inline void vexpf_optimized(float *a, float *b) {
                     FP0_ASM_BODY
                     :
                     : [n_frep] "r" (BATCH_SIZE / unroll_factor - 1),
-                        [InvLn2N] "f" (InvLn2N), [SHIFT] "f" (SHIFT)
+                      [InvLn2N] "f" (InvLn2N), [SHIFT] "f" (SHIFT)
                     : "memory", "ft0", "ft1", "ft2", "fa3", "ft3", "ft4", "ft5"
                 );
                 snrt_ssr_disable();
@@ -166,39 +168,81 @@ static inline void vexpf_optimized(float *a, float *b) {
                 fp0_a_idx %= N_T_BUFFERS;
             }
 
-            // INT phase
-            if (iteration > 1 && iteration < n_iterations - 2) {
+            // Both FP0 and FP1 phases
+            if (iteration > 2 && iteration < n_iterations - 3) {
 
                 // Index buffers
-                int_ki_ptr = ki_buffers[int_ki_idx];
-                int_t_ptr = t_buffers[int_t_idx];
+                fp0_a_ptr = a_buffers[fp0_a_idx];
+                fp0_k_ptr = kd_buffers[fp0_k_idx];
+                fp1_kd_ptr = kd_buffers[fp1_kd_idx];
 
-                // INT computation
+                // Configure SSRs
                 int unroll_factor = 4;
-                for (int i = 0; i < BATCH_SIZE; i += unroll_factor) {
-                    asm volatile(
-                        INT_ASM_BODY
-                        :
-                        : [ki] "r" (int_ki_ptr + i), [T] "r" (T), [t] "r" (int_t_ptr + i)
-                        : "memory", "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7",
-                            "t0", "t1", "t2", "t3"
-                    );
-                }
+                snrt_ssr_loop_3d(
+                    SNRT_SSR_DM0,
+                    unroll_factor,
+                    2,
+                    BATCH_SIZE / unroll_factor,
+                    sizeof(double),
+                    N_T_BUFFERS * BATCH_SIZE * sizeof(double),
+                    sizeof(double) * unroll_factor
+                );
+                snrt_ssr_loop_3d(
+                    SNRT_SSR_DM1,
+                    unroll_factor,
+                    2,
+                    BATCH_SIZE / unroll_factor,
+                    sizeof(double),
+                    N_KI_KD_BUFFERS * BATCH_SIZE * sizeof(double),
+                    sizeof(double) * unroll_factor
+                );
+                snrt_ssr_loop_3d(
+                    SNRT_SSR_DM2,
+                    unroll_factor,
+                    3,
+                    BATCH_SIZE / unroll_factor,
+                    sizeof(double),
+                    N_KI_KD_BUFFERS * BATCH_SIZE * sizeof(double),
+                    sizeof(double) * unroll_factor
+                );
+                snrt_ssr_read(SNRT_SSR_DM0, SNRT_SSR_3D, fp0_a_ptr);
+                snrt_ssr_read(SNRT_SSR_DM1, SNRT_SSR_3D, fp1_kd_ptr);
+                snrt_ssr_write(SNRT_SSR_DM2, SNRT_SSR_3D, fp0_k_ptr);
+                snrt_ssr_enable();
 
-                // Increment buffer indices for next iteration
-                int_ki_idx += 1;
-                int_t_idx += 1;
-                int_ki_idx %= N_KI_KD_BUFFERS;
-                int_t_idx %= N_T_BUFFERS;
+                // FP0 and FP1 computation
+                asm volatile(
+                    "frep.o %[n_frep], 40, 0, 0 \n"
+                    FP0_FP1_ASM_BODY
+                    :
+                    : [n_frep] "r" (BATCH_SIZE / unroll_factor - 1),
+                      [InvLn2N] "f" (InvLn2N), [SHIFT] "f" (SHIFT),
+                      [C0] "f" (C[0]), [C1] "f" (C[1]),
+                      [C2] "f" (C[2]), [C3] "f" (C[3])
+                    : "memory", "ft0", "ft1", "ft2",
+                      "fa0", "fa1", "fa2", "fa3", "fa4", "fa5",
+                      "fa6", "fa7", "ft3", "ft4", "ft5", "ft6", "ft7", "ft8",
+                      "ft9", "ft10", "ft11", "fs0", "fs1", "fs2"
+                );
+                snrt_ssr_disable();
+
+                // Increment buffer index for next iteration
+                fp0_k_idx += 1;
+                fp0_a_idx += 1;
+                fp1_kd_idx += 1;
+                fp1_t_idx += 1;
+                fp0_k_idx %= N_KI_KD_BUFFERS;
+                fp0_a_idx %= N_T_BUFFERS;
+                fp1_kd_idx %= N_KI_KD_BUFFERS;
+                fp1_t_idx %= N_T_BUFFERS;
             }
 
             // FP1 phase
-            if (iteration > 2 && iteration < n_iterations - 1) {
+            if (iteration > 2 && iteration >= n_iterations - 3 && iteration < n_iterations - 1) {
 
                 // Index buffers
                 fp1_kd_ptr = kd_buffers[fp1_kd_idx];
                 fp1_t_ptr = t_buffers[fp1_t_idx];
-                fp1_z_ptr = z_buffers[fp1_kd_idx];
                 fp1_b_ptr = b_buffers[fp1_kd_idx];
 
                 // Configure SSRs
@@ -225,13 +269,13 @@ static inline void vexpf_optimized(float *a, float *b) {
                     FP1_ASM_BODY
                     :
                     : [n_frep] "r" (BATCH_SIZE / unroll_factor - 1),
-                        [SHIFT] "f" (SHIFT),
-                        [C0] "f" (C[0]), [C1] "f" (C[1]),
-                        [C2] "f" (C[2]), [C3] "f" (C[3])
+                      [SHIFT] "f" (SHIFT),
+                      [C0] "f" (C[0]), [C1] "f" (C[1]),
+                      [C2] "f" (C[2]), [C3] "f" (C[3])
                     : "memory", "fa0", "fa1", "fa2", "fa3", "fa4", "fa5",
-                        "fa6", "fa7", "ft3", "ft4", "ft5", "ft6", "ft7", "ft8",
-                        "ft9", "ft10", "ft11", "fs0", "fs1", "fs2", "ft0", "ft1",
-                        "ft2"
+                      "fa6", "fa7", "ft3", "ft4", "ft5", "ft6", "ft7", "ft8",
+                      "ft9", "ft10", "ft11", "fs0", "fs1", "fs2", "ft0", "ft1",
+                      "ft2"
                 );
                 snrt_ssr_disable();
 
@@ -240,6 +284,32 @@ static inline void vexpf_optimized(float *a, float *b) {
                 fp1_t_idx += 1;
                 fp1_kd_idx %= N_KI_KD_BUFFERS;
                 fp1_t_idx %= N_T_BUFFERS;
+            }
+
+            // INT phase
+            if (iteration > 1 && iteration < n_iterations - 2) {
+
+                // Index buffers
+                int_ki_ptr = ki_buffers[int_ki_idx];
+                int_t_ptr = t_buffers[int_t_idx];
+
+                // INT computation
+                int unroll_factor = 4;
+                for (int i = 0; i < BATCH_SIZE; i += unroll_factor) {
+                    asm volatile(
+                        INT_ASM_BODY
+                        :
+                        : [ki] "r" (int_ki_ptr + i), [T] "r" (T), [t] "r" (int_t_ptr + i)
+                        : "memory", "a0", "a1", "a2", "a3", "a4", "a5", "a6", "a7",
+                            "t0", "t1", "t2", "t3"
+                    );
+                }
+
+                // Increment buffer indices for next iteration
+                int_ki_idx += 1;
+                int_t_idx += 1;
+                int_ki_idx %= N_KI_KD_BUFFERS;
+                int_t_idx %= N_T_BUFFERS;
             }
 
             // Synchronize FP and integer threads
