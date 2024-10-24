@@ -4,7 +4,7 @@
 //
 // Luca Colagrande <colluca@iis.ee.ethz.ch>
 
-#define BATCH_SIZE 8
+#define BATCH_SIZE 96
 
 #define ALLOCATE_BUFFER(type, size) \
     (type *)snrt_l1_alloc_cluster_local(size * sizeof(type), sizeof(type))
@@ -80,6 +80,8 @@ static inline void vexpf_optimized(double *a, double *b) {
         // DMA cores
         if (snrt_is_dm_core()) {
 
+            snrt_mcycle();
+
             // DMA in phase
             if (iteration < n_iterations - 4) {
 
@@ -121,10 +123,14 @@ static inline void vexpf_optimized(double *a, double *b) {
             }
 
             snrt_dma_wait_all();
+
+            snrt_mcycle();
         }
 
         // Compute cores
         if (snrt_cluster_core_idx() == 0) {
+
+            snrt_mcycle();
 
             // FP0 phase
             if (iteration > 0 && iteration < 3 && iteration < n_iterations - 3) {
@@ -151,7 +157,6 @@ static inline void vexpf_optimized(double *a, double *b) {
                       [InvLn2N] "f" (InvLn2N), [SHIFT] "f" (SHIFT)
                     : "memory", "ft0", "ft1", "ft2", "fa3", "ft3", "ft4", "ft5"
                 );
-                snrt_ssr_disable();
 
                 // Increment buffer index for next iteration
                 fp0_k_idx += 1;
@@ -216,7 +221,6 @@ static inline void vexpf_optimized(double *a, double *b) {
                       "fa6", "fa7", "ft3", "ft4", "ft5", "ft6", "ft7", "ft8",
                       "ft9", "ft10", "ft11", "fs0", "fs1", "fs2"
                 );
-                snrt_ssr_disable();
 
                 // Increment buffer index for next iteration
                 fp0_k_idx += 1;
@@ -269,7 +273,6 @@ static inline void vexpf_optimized(double *a, double *b) {
                       "ft9", "ft10", "ft11", "fs0", "fs1", "fs2", "ft0", "ft1",
                       "ft2"
                 );
-                snrt_ssr_disable();
 
                 // Increment buffer indices for next iteration
                 fp1_kd_idx += 1;
@@ -305,7 +308,10 @@ static inline void vexpf_optimized(double *a, double *b) {
             }
 
             // Synchronize FP and integer threads
+            snrt_ssr_disable();
             snrt_fpu_fence();
+
+            snrt_mcycle();
         }
 
         // Synchronize cores

@@ -8,7 +8,7 @@
 #include "snrt.h"
 
 #ifndef LEN
-#define LEN 32
+#define LEN 12288
 #endif
 
 #ifndef FUNC_PTR
@@ -46,9 +46,7 @@ int main() {
         for (int i = 0; i < LEN; i++) {
             b_golden[i] = (double)expf((float)a[i]);
         }
-        // vexpf_baseline(a, b_golden);
         tend = snrt_mcycle();
-        // printf("Reference cycles: %d\n", tend - tstart);
     }
 
     // Synchronize cores
