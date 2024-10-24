@@ -4,7 +4,7 @@
 //
 // Luca Colagrande <colluca@iis.ee.ethz.ch>
 
-#define BATCH_SIZE 96
+#define BATCH_SIZE 64
 
 #define ALLOCATE_BUFFER(type, size) \
     (type *)snrt_l1_alloc_cluster_local(size * sizeof(type), sizeof(type))

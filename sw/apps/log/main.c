@@ -8,11 +8,11 @@
 #include "snrt.h"
 
 #ifndef LEN
-#define LEN 12288
+#define LEN 8
 #endif
 
 #ifndef FUNC_PTR
-#define FUNC_PTR vexpf_optimized
+#define FUNC_PTR vlogf_glibc
 #endif
 
 // TODO
@@ -27,19 +27,21 @@
 //     0x3fef5818dcfba487, 0x3fef7c97337b9b5f, 0x3fefa4afa2a490da, 0x3fefd0765b6e4540,
 // };
 
-double a[LEN], b_golden[LEN], b_actual[LEN];
+volatile double a[LEN] = {2, 3, 5, 3, 4, 1, 2, 2};
+double b_golden[LEN], b_actual[LEN];
 
-#include "vlogf_naive.h"
-#include "vlogf_baseline.h"
-#include "vlogf_optimized.h"
+#include "vlogf_glibc.h"
+// #include "vlogf_naive.h"
+// #include "vlogf_baseline.h"
+// #include "vlogf_optimized.h"
 
 int main() {
     uint32_t tstart, tend;
 
     // Initialize input array
-    if (snrt_cluster_core_idx() == 0)
-        for (int i = 0; i < LEN; i++)
-            a[i] = (float)i / LEN;
+    // if (snrt_cluster_core_idx() == 0)
+    //     for (int i = 0; i < LEN; i++)
+    //         a[i] = (float)i / LEN;
 
     // Calculate exponential of input array using reference implementation
     if (snrt_cluster_core_idx() == 0) {
@@ -53,22 +55,22 @@ int main() {
     // Synchronize cores
     snrt_cluster_hw_barrier();
 
-    // // Calculate exponential of input array using vectorized implementation
-    // tstart = snrt_mcycle();
-    // FUNC_PTR(a, b_actual);
-    // tend = snrt_mcycle();
+    // Calculate exponential of input array using vectorized implementation
+    tstart = snrt_mcycle();
+    FUNC_PTR(a, b_actual);
+    tend = snrt_mcycle();
 
-    // // Check if the results are correct
-    // if (snrt_cluster_core_idx() == 0) {
-    //     uint32_t n_err = LEN;
-    //     for (int i = 0; i < LEN; i++) {
-    //         if ((float)b_golden[i] != (float)b_actual[i])
-    //             printf("Error: b_golden[%d] = %f, b_actual[%d] = %f\n", i,
-    //                 (float)b_golden[i], i, (float)b_actual[i]);
-    //         else
-    //             n_err--;
-    //     }
-    //     return n_err;
-    // } else
-    //     return 0;
+    // Check if the results are correct
+    if (snrt_cluster_core_idx() == 0) {
+        uint32_t n_err = LEN;
+        for (int i = 0; i < LEN; i++) {
+            if ((float)b_golden[i] != (float)b_actual[i])
+                printf("Error: b_golden[%d] = %f, b_actual[%d] = %f\n", i,
+                    (float)b_golden[i], i, (float)b_actual[i]);
+            else
+                n_err--;
+        }
+        return n_err;
+    } else
+        return 0;
 }
