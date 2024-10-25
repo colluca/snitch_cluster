@@ -55,6 +55,25 @@ runs:
   #   simulators: [vsim, vcs, verilator] # banshee fails with illegal instruction
   # - elf: ./tests/build/fp64_conversions_scalar.elf
   #   simulators: [vsim, vcs, verilator]
+  - elf: ./tests/build/frep.elf
+  - elf: ./tests/build/frep1d.elf
+  - elf: ./tests/build/frep2d_1.elf
+  - elf: ./tests/build/frep2d_1b.elf
+  - elf: ./tests/build/frep2d_2.elf
+  - elf: ./tests/build/frep2d_2b.elf
+  - elf: ./tests/build/frep3d_1.elf
+  - elf: ./tests/build/frep3d_1b.elf
+  - elf: ./tests/build/frep3d_1c.elf
+  - elf: ./tests/build/frep3d_1d.elf
+  - elf: ./tests/build/frep3d_2.elf
+  - elf: ./tests/build/frep3d_2b.elf
+  - elf: ./tests/build/frep3d_3.elf
+  - elf: ./tests/build/frep3d_4.elf
+  - elf: ./tests/build/frep4d_1.elf
+  - elf: ./tests/build/frep4d_2.elf
+  - elf: ./tests/build/frep4d_3.elf
+  - elf: ./tests/build/frep4d_4.elf
+  - elf: ./tests/build/gemm_frep.elf
   - elf: ./tests/build/interrupt_local.elf
   - elf: ./tests/build/multi_cluster.elf
   - elf: ./tests/build/openmp_parallel.elf
