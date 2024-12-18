@@ -57,6 +57,7 @@ APPS += sw/apps/atax
 APPS += sw/apps/correlation
 APPS += sw/apps/covariance
 APPS += sw/apps/kmeans
+APPS += sw/apps/bfs
 
 SUBDIRS = sw/runtime/banshee sw/runtime/rtl $(APPS) sw/tests
 

@@ -15,6 +15,7 @@ import torch
 import numpy as np
 import pyflexfloat as ff
 import humanize
+import math
 
 # Maximum available size in TCDM (in bytes)
 TCDM_HEAP_SIZE = 112 * 1024
@@ -199,6 +200,45 @@ def format_ifdef_wrapper(macro, body):
     return s
 
 
+def to_bits(chunks, ctype='uint32_t'):
+    """Convert structured data to a bit array.
+
+    Returns a list of bits corresponding to the structured data.
+    """
+    if ctype == 'uint32_t':
+        bitstring = 0
+
+        # Combine chunks into a single bitstring
+        for i, chunk in enumerate(chunks):
+            bitstring |= int(chunk) << (32 * i)
+
+        # Extract individual bits from the bitstring
+        bit_array = [(bitstring >> i) & 1 for i in range(bitstring.bit_length())]
+        return bit_array
+    else:
+        raise ValueError(f'Unsupported ctype: {ctype}')
+
+
+def from_bits(bit_array, ctype='uint32_t'):
+    """Get structured data from a list of bits.
+
+    Returns a homogeneous list of the specified type from the list of
+    bits.
+    """
+    if ctype == 'uint32_t':
+        # Build bitstring
+        bitstring = 0
+        for i, bit in enumerate(bit_array):
+            bitstring |= bit << i
+
+        # Split bitstring into chunks and convert to specified type
+        num_chunks = math.ceil(math.log2(bitstring) / 32)
+        chunks = [(bitstring >> (32 * i)) & 0xFFFFFFFF for i in range(num_chunks)]
+        return chunks
+    else:
+        raise ValueError(f'Unsupported ctype: {ctype}')
+
+
 def from_buffer(byte_array, ctype='uint32_t'):
     """Get structured data from raw bytes.
 
@@ -217,6 +257,8 @@ def from_buffer(byte_array, ctype='uint32_t'):
     # Types which have a direct correspondence in Numpy
     NP_DTYPE_FROM_CTYPE = {
         'uint32_t': np.uint32,
+        'int32_t': np.int32,
+        'int': np.int32,
         'double': np.float64,
         'float': np.float32,
         '__fp16': np.float16
