@@ -73,7 +73,19 @@ def main():
         data = json.load(f)
 
     # Iterate threads
+    sort_index = 0
     for thread, regions in data.items():
+
+        # Create TraceViewer event to sort threads
+        event = {
+            'name': 'thread_sort_index',
+            'ph': "M",
+            'pid': 0,
+            'tid': thread,
+            'args': {'sort_index': sort_index}
+        }
+        events.append(event)
+        sort_index += 1
 
         # Iterate execution regions for current thread
         for region in regions:
