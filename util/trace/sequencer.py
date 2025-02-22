@@ -5,7 +5,6 @@
 # Authors: Luca Colagrande <colluca@iis.ee.ethz.ch>
 """Classes and model for the Snitch self."""
 
-import sys
 import warnings
 
 
@@ -93,11 +92,6 @@ class Sequencer(object):
 
         # If we are in a loop, we issue the next instruction in the loop
         if self.loop_idx > -1:
-
-            s = ''
-            for loop in self.loop_cfg:
-                s += f'({loop["iter_idx"]}, {loop["inst_idx"]}) '
-            print(s)
 
             # Get current instruction info and loop status for printing.
             # The loops status PC identifies the active loop by the PC
