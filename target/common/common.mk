@@ -43,6 +43,10 @@ JOIN_PY          ?= $(UTIL_DIR)/bench/join.py
 ROI_PY           ?= $(UTIL_DIR)/bench/roi.py
 VISUALIZE_PY     ?= $(UTIL_DIR)/bench/visualize.py
 
+# Prerequisites
+GENTRACE_PREREQ = $(GENTRACE_PY) $(UTIL_DIR)/trace/sequencer.py
+
+
 # For some reason `$(VERILATOR_SEPP) which verilator` returns a
 # a two-liner with the OS on the first line, hence the tail -n1
 VERILATOR_ROOT  ?= $(dir $(shell $(VERILATOR_SEPP) which verilator | tail -n1))..
@@ -252,8 +256,8 @@ clean-perf:
 clean-visual-trace:
 	rm -f $(VISUAL_TRACE)
 
-$(addprefix $(LOGS_DIR)/,trace_hart_%.txt hart_%_perf.json dma_%_perf.json): $(LOGS_DIR)/trace_hart_%.dasm $(GENTRACE_PY)
-	$(GENTRACE_PY) $< --mc-exec $(RISCV_MC) --mc-flags "$(RISCV_MC_FLAGS)" --permissive --dma-trace $(SIM_DIR)/dma_trace_$*_00000.log --dump-hart-perf $(LOGS_DIR)/hart_$*_perf.json --dump-dma-perf $(LOGS_DIR)/dma_$*_perf.json -o $(LOGS_DIR)/trace_hart_$*.txt
+$(addprefix $(LOGS_DIR)/,trace_hart_%.txt hart_%_perf.json dma_%_perf.json): $(LOGS_DIR)/trace_hart_%.dasm $(GENTRACE_PREREQ)
+	$(GENTRACE_PY) $< --mc-exec $(RISCV_MC) --mc-flags "$(RISCV_MC_FLAGS)" --dma-trace $(SIM_DIR)/dma_trace_$*_00000.log --dump-hart-perf $(LOGS_DIR)/hart_$*_perf.json --dump-dma-perf $(LOGS_DIR)/dma_$*_perf.json -o $(LOGS_DIR)/trace_hart_$*.txt
 
 # Generate source-code interleaved traces for all harts. Reads the binary from
 # the logs/.rtlbinary file that is written at start of simulation in the vsim script

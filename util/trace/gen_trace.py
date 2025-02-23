@@ -813,7 +813,7 @@ def annotate_fpu(
                     f'In cycle {cycle}, {writer.upper()} attempts writeback to '
                     f'{REG_ABI_NAMES_F[extras["fpr_waddr"]]}, but none in flight.'
                 )
-                warning.warn(message)
+                warnings.warn(message)
         ret.append('(f:{}) {:<4} <-- {}'.format(
             writer, REG_ABI_NAMES_F[extras['fpr_waddr']],
             flt_lit(extras['fpr_wdata'], fmt, vlen=vlen)))
