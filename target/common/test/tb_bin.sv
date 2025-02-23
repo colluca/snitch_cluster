@@ -46,6 +46,11 @@ module tb_bin;
     while ((exit_code = fesvr_tick()) == 0) #200ns;
     // Cleanup C++ simulation objects before $finish is called
     fesvr_cleanup();
+    // Wait a couple hundred cycles for the binary to complete,
+    // as a few instructions usually follow the exit routine,
+    // and we need the core traces to be complete.
+    #(200*TCK);
+    // Return the exit code
     exit_code >>= 1;
     if (exit_code > 0) begin
       $error("[FAILURE] Finished with exit code %2d", exit_code);
