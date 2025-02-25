@@ -4,9 +4,9 @@
 
 {
     "r": 16,
-    "q": 16,
-    "s": 32,
+    "q": 8,
+    "s": 8,
     "r_tiles": 2,
     "q_tiles": 2,
-    "funcptr": "doitgen_baseline"
+    "funcptr": "doitgen_opt"
 }
