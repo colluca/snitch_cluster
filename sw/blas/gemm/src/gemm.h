@@ -213,7 +213,6 @@ int gemm(gemm_args_t* args) {
         // Compute
         if (snrt_is_compute_core()) {
             if (i > 0 && i < (n_tiles*m_tiles) + 1) {
-                snrt_mcycle();
 
                 // Compute tile and buffer indices
                 i_compute = i - 1;
@@ -227,8 +226,6 @@ int gemm(gemm_args_t* args) {
                 }
                 sc_st_gemm(local_args, local_a[0], local_b[buff_idx], beta,
                            local_c[buff_idx]);
-
-                snrt_mcycle();
             }
         }
 
