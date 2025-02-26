@@ -9,7 +9,7 @@
 
 from copy import deepcopy
 import json5
-from mako.template import Template
+import mako
 import pandas as pd
 from pathlib import Path
 from snitch.target.SimResults import SimResults
@@ -22,7 +22,7 @@ import yaml
 try:
     from snitch.nonfree.PowerResults import PowerResults
 except ImportError as e:
-    print('PowerResults module not found, power results will not be available', e)
+    print(f'{e}. Power results will not be available.')
 
 
 ACTIONS = ['sw', 'run', 'traces', 'annotate', 'perf', 'visual-trace', 'power', 'all', 'none']
@@ -92,12 +92,17 @@ class ExperimentManager:
     def derive_cdefines(self, experiment):
         return {}
 
+    def derive_data_cfg(self, experiment):
+        return None
+
     def run(self):
         # Build software
         if 'sw' in self.actions or 'all' in self.actions:
             for experiment in self.experiments:
                 defines = self.derive_cdefines(experiment)
-                build.build(experiment['app'], experiment['elf'].parent, defines=defines)
+                data_cfg = self.derive_data_cfg(experiment)
+                build.build(experiment['app'], experiment['elf'].parent, defines=defines,
+                            data_cfg=data_cfg)
 
         # Run experiments
         if 'run' in self.actions or 'all' in self.actions:
@@ -147,22 +152,25 @@ class ExperimentManager:
         if 'visual-trace' in self.actions or 'all' in self.actions:
 
             # Check for existence of a ROI specification
-            roi = self.dir / 'roi.json'
+            roi = self.dir / 'roi.json.tpl'
             if roi.exists():
                 for experiment in self.experiments:
 
                     # Render ROI specification template
-                    with open(spec, 'r') as f:
+                    with open(roi, 'r') as f:
                         spec = f.read()
-                    spec_template = Template(spec)
-                    spec_data = spec_template.render(**experiment['axes'])
+                    spec_template = mako.template.Template(spec)
+                    try:
+                        spec_data = spec_template.render(experiment=experiment)
+                    except Exception:
+                        print(mako.exceptions.text_error_template().render())
                     spec_data = json5.loads(spec_data)
-                    rendered_spec = self.run_dir / 'roi_spec.json'
+                    rendered_spec = experiment['run_dir'] / 'roi_spec.json'
                     with open(rendered_spec, 'w') as f:
                         json5.dump(spec_data, f, indent=4)
 
                     # Build visual trace
-                    build.build_visual_trace(self.run_dir, rendered_spec)
+                    build.build_visual_trace(experiment['run_dir'], rendered_spec)
 
         # Generate joint performance dump
         if 'power' in self.actions or 'all' in self.actions:
