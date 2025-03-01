@@ -21,13 +21,16 @@ add wave -noupdate {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitc
 add wave -noupdate {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/oup_qvalid_o}
 add wave -noupdate {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/oup_qready_i}
 add wave -noupdate -color {Cornflower Blue} -expand -subitemconfig {{/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/frep_cfg_q[3]} {-color {Cornflower Blue} -height 16} {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/frep_cfg_q[2]} {-color {Cornflower Blue} -height 16} {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/frep_cfg_q[1]} {-color {Cornflower Blue} -height 16} {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/frep_cfg_q[0]} {-color {Cornflower Blue} -height 16}} {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/frep_cfg_q}
-add wave -noupdate -color {Cornflower Blue} -expand -subitemconfig {{/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/inst_cnt_q[3]} {-color {Cornflower Blue} -height 16} {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/inst_cnt_q[2]} {-color {Cornflower Blue} -height 16} {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/inst_cnt_q[1]} {-color {Cornflower Blue} -height 16} {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/inst_cnt_q[0]} {-color {Cornflower Blue} -height 16}} {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/inst_cnt_q}
-add wave -noupdate -color {Cornflower Blue} -expand -subitemconfig {{/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/rpt_cnt_q[3]} {-color {Cornflower Blue} -height 16} {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/rpt_cnt_q[2]} {-color {Cornflower Blue} -height 16} {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/rpt_cnt_q[1]} {-color {Cornflower Blue} -height 16} {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/rpt_cnt_q[0]} {-color {Cornflower Blue} -height 16}} {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/rpt_cnt_q}
 add wave -noupdate {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/loop_end_pointer}
 add wave -noupdate -color Orange -radix binary {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/last_inst}
 add wave -noupdate -color Orange -radix binary {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/last_iter}
 add wave -noupdate -color {Cornflower Blue} {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/frep_idx_q}
 add wave -noupdate -color {Cornflower Blue} {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/frep_cnt_q}
+add wave -noupdate -radix binary {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/inst_starts_loop}
+add wave -noupdate -radix binary {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/inst_starts_mask}
+add wave -noupdate {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/starting_frep_idx}
+add wave -noupdate {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/outermost_non_ending_loop}
+add wave -noupdate {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/non_ending_loops_cnt}
 add wave -noupdate -color Orange {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/seq_next}
 add wave -noupdate -color Orange {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/frep_active_d}
 add wave -noupdate -color Orange {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/frep_active_q}
@@ -64,9 +67,9 @@ add wave -noupdate -expand -group {ring buffer} {/tb_bin/i_dut/i_snitch_cluster/
 add wave -noupdate -expand -group {ring buffer} {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/i_ring_buffer/rptr_q}
 add wave -noupdate -expand -group {ring buffer} {/tb_bin/i_dut/i_snitch_cluster/i_cluster/gen_core[0]/i_snitch_cc/gen_fpu/i_snitch_fp_ss/gen_fpu_sequencer/i_snitch_fpu_sequencer/i_ring_buffer/wptr_q}
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{FREP 1} {2844000 ps} 1} {{FREP 2} {2852000 ps} 1} {{Cursor 3} {2851441 ps} 0}
+WaveRestoreCursors {{FREP 1} {891000 ps} 1} {{FREP 3} {903000 ps} 1} {{Cursor 5} {890000 ps} 0}
 quietly wave cursor active 3
-configure wave -namecolwidth 194
+configure wave -namecolwidth 210
 configure wave -valuecolwidth 233
 configure wave -justifyvalue left
 configure wave -signalnamewidth 1
@@ -80,4 +83,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ns
 update
-WaveRestoreZoom {2842658 ps} {2864865 ps}
+WaveRestoreZoom {881035 ps} {911133 ps}

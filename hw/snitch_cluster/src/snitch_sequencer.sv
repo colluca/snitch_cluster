@@ -12,9 +12,8 @@ module snitch_sequencer import snitch_pkg::*; #(
     parameter int unsigned Depth = 32,
     parameter acc_addr_e DstAddr = FP_SS,
     /// Derived parameter *Do not override*
-    parameter type addr_t = logic [AddrWidth-1:0],
-    parameter type data_t = logic [DataWidth-1:0],
-    parameter int unsigned DepthBits = $clog2(Depth)
+    localparam type addr_t = logic [AddrWidth-1:0],
+    localparam type data_t = logic [DataWidth-1:0]
 ) (
     input  logic                             clk_i,
     input  logic                             rst_i,
@@ -49,6 +48,11 @@ module snitch_sequencer import snitch_pkg::*; #(
 
   localparam int RptBits = 16;
   localparam int FrepDim = 4;
+
+  localparam int unsigned DepthBits = $clog2(Depth);
+  // TODO: check which types can be loosened to use LoopIdxBits
+  localparam int unsigned LoopCntBits = $clog2(FrepDim + 1);
+  localparam int unsigned LoopIdxBits = $clog2(FrepDim);
 
   /////////////
   // Decoder //
@@ -237,11 +241,8 @@ module snitch_sequencer import snitch_pkg::*; #(
 
   logic [FrepDim-1:0] last_iter;
   logic [FrepDim-1:0] last_inst;
-  logic [FrepDim-1:0][DepthBits-1:0] inst_cnt_q, inst_cnt_d;
-  logic [FrepDim-1:0][RptBits-1:0] rpt_cnt_q, rpt_cnt_d;
 
-  `FFAR(inst_cnt_q, inst_cnt_d, '0, clk_i, rst_i);
-  `FFAR(rpt_cnt_q, rpt_cnt_d, '0, clk_i, rst_i);
+  logic [FrepDim-1:0][RptBits-1:0] rpt_cnt;
 
   // TODO
   logic [2:0] stagger_cnt_q, stagger_cnt_d;
@@ -264,9 +265,8 @@ module snitch_sequencer import snitch_pkg::*; #(
   seq_cfg_t [FrepDim-1:0] frep_cfg_d, frep_cfg_q;
   logic frep_active_d, frep_active_q;
 
-  logic [DepthBits-1:0] frep_idx_d, frep_idx_q;
-  logic [DepthBits-1:0] frep_cnt_d, frep_cnt_q; 
-
+  logic [LoopCntBits-1:0] frep_idx_d, frep_idx_q;
+  logic [LoopCntBits-1:0] frep_cnt_d, frep_cnt_q;
 
   `FFAR(frep_cfg_q, frep_cfg_d, '0, clk_i, rst_i);
   `FFAR(frep_active_q, frep_active_d, '0, clk_i, rst_i);
@@ -360,49 +360,68 @@ module snitch_sequencer import snitch_pkg::*; #(
   // Loop state transition logic //
   /////////////////////////////////
 
+  logic [FrepDim-1:0] last_iter_inner_loops;
+
   for (genvar i = 0; i < FrepDim; i++) begin : gen_fsm_loop
 
-    logic count_inner_loop_inst;
+    logic incr_inst;
+    logic incr_iter;
 
-    // TODO does this belong here?
-    assign loop_end_pointer[i] = frep_cfg_q[i].base_pointer + frep_cfg_q[i].max_inst;
+    logic [FrepDim-1:0] loop_mask;
 
-    assign last_inst[i] = (inst_cnt_q[i] == frep_cfg_q[i].max_inst);
-    assign last_iter[i] = (rpt_cnt_q[i] == frep_cfg_q[i].max_rpt);
+    // // Mask over present and outer loops, and inner inactive loops
+    // // (i.e. loops nested within the currently active loop).
+    // mask #(
+    //   .Width(FrepDim),
+    //   .Mode(1)
+    // ) i_mask (
+    //   .lsb_i(i + 1),
+    //   .msb_i(frep_idx_q),
+    //   .mask_o(loop_mask)
+    // );
 
     // Instructions in inner loop bodies may be repeated multiple times, but must
     // be counted only once by the outer loop instruction counter. Specifically,
     // we count them when they are last issued, i.e. when all loops between the
     // one containing the current instruction (frep_idx_q) and the outer loop (i)
     // are in their last iteration.
-    always_comb begin
-      count_inner_loop_inst = frep_active_q && seq_next && (frep_idx_q > i);
-      for (int j = i + 1; j <= frep_idx_q; j++) begin
-        if (!last_iter[j]) begin
-          count_inner_loop_inst = 0;
-          break;
-        end
-      end
-    end
+    logic [FrepDim-1:0] outer_loops_mask, inner_loops_mask;
+    assign outer_loops_mask = (1 << (i + 1)) - 1;  // Ignore present and outer loops
+    assign inner_loops_mask = ~((1 << (frep_idx_q + 1)) - 1);  // Ignore inner, inactive loops
+    // assign last_iter_inner_loops[i] = &(last_iter | loop_mask);
+    assign last_iter_inner_loops[i] = &(last_iter | outer_loops_mask | inner_loops_mask);
+    assign incr_inst = frep_active_q && seq_next
+      && (((i == frep_idx_q) && (i < frep_cnt_q))
+      || ((frep_idx_q > i) && last_iter_inner_loops[i]));
 
-    // TODO improve comment
-    always_comb begin
-      // Default assignments
-      inst_cnt_d[i] = inst_cnt_q[i];
-      rpt_cnt_d[i] = rpt_cnt_q[i];
+    trip_counter #(
+      .WIDTH(DepthBits)
+    ) i_inst_counter (
+      .clk_i(clk_i),
+      .rst_ni(~rst_i),
+      .en_i(incr_inst),
+      .delta_i(DepthBits'(1)),
+      .bound_i(frep_cfg_q[i].max_inst),
+      .q_o(),
+      .last_o(last_inst[i]),
+      .trip_o(incr_iter)
+    );
 
-      // Update logic
-      if ((frep_active_q && seq_next && (i == frep_idx_q) && (i < frep_cnt_q)) || count_inner_loop_inst) begin
-        inst_cnt_d[i] = inst_cnt_q[i] + 1;
-        if (last_inst[i]) begin
-          inst_cnt_d[i] = '0;
-          rpt_cnt_d[i] = rpt_cnt_q[i] + 1;
-          if (last_iter[i]) begin
-            rpt_cnt_d[i] = '0;
-          end
-        end
-      end
-    end
+    trip_counter #(
+      .WIDTH(RptBits)
+    ) i_rpt_counter (
+      .clk_i(clk_i),
+      .rst_ni(~rst_i),
+      .en_i(incr_iter),
+      .delta_i(RptBits'(1)),
+      .bound_i(frep_cfg_q[i].max_rpt),
+      .q_o(rpt_cnt[i]),
+      .last_o(last_iter[i]),
+      .trip_o()
+    );
+
+    // TODO does this belong here?
+    assign loop_end_pointer[i] = frep_cfg_q[i].base_pointer + frep_cfg_q[i].max_inst;
 
   end
 
@@ -444,7 +463,65 @@ module snitch_sequencer import snitch_pkg::*; #(
     end
   end
 
-  // TODO update comments
+  logic [FrepDim-1:0] inst_starts_loop;
+
+  for (genvar i = 0; i < FrepDim; i++) begin : gen_inst_starts_loop
+    assign inst_starts_loop[i] = (rd_pointer_d == frep_cfg_d[i].base_pointer);
+  end
+
+  // // Mask over 
+  // mask #(
+  //   .Width(FrepDim),
+  //   .Mode(1)
+  // ) i_mask (
+  //   .lsb_i(i + 1),      // Ignore present and outer loops
+  //   .msb_i(frep_idx_q), // Ignore inner, inactive loops
+  //   .mask_o(mask)
+  // );
+
+  logic [FrepDim-1:0] inst_starts_lmask, inst_starts_hmask, inst_starts_mask;
+  logic no_loop_starts;
+  logic [LoopIdxBits-1:0] lzc_cnt;
+  logic [LoopIdxBits-1:0] starting_frep_idx;
+
+  // Mask to select only the loops which need to be considered
+  // to find the innermost loop starting at the next instruction,
+  // That is all loops i, with frep_idx_q < i < frep_cnt_d.
+  assign inst_starts_lmask = (1 << (frep_idx_q + 1)) - 1;
+  assign inst_starts_hmask = ~((1 << (frep_cnt_d - 1 + 1)) - 1);
+  assign inst_starts_mask = ~(inst_starts_lmask | inst_starts_hmask);
+
+  // Find the innermost loop starting at the next instruction.
+  lzc #(
+    .WIDTH(FrepDim),
+    .MODE(1)
+  ) i_loop_start_lzc (
+    .in_i(inst_starts_mask & inst_starts_loop),
+    .cnt_o(lzc_cnt),
+    .empty_o(no_loop_starts)
+  );
+  assign starting_frep_idx = FrepDim - lzc_cnt - 1;
+
+  logic [LoopIdxBits-1:0] non_ending_loops_cnt;
+  logic [LoopIdxBits-1:0] outermost_non_ending_loop;
+  logic [FrepDim-1:0] loop_ends;
+  logic [FrepDim-1:0] loop_active;
+  logic no_loop_ends;
+
+  assign loop_ends = last_inst & last_iter & last_iter_inner_loops;
+  assign loop_active = (1 << (frep_idx_q + 1)) - 1;
+
+  // Compute the innermost active loop which does not end with the current instruction, using a trailing zero counter.
+  lzc #(
+    .WIDTH(FrepDim),
+    .MODE(0)
+  ) i_loop_end_tzc (
+    .in_i(loop_ends | ~loop_active),
+    .cnt_o(non_ending_loops_cnt),
+    .empty_o(no_loop_ends)
+  );
+  assign outermost_non_ending_loop = no_loop_ends ? non_ending_loops_cnt : non_ending_loops_cnt - 1;
+
   // FREP index update
   always_comb begin : sequence_logic
     frep_idx_d = frep_idx_q;
@@ -452,46 +529,39 @@ module snitch_sequencer import snitch_pkg::*; #(
     frep_active_d = frep_active_q;
     loop_end = 1'b0;
 
+    // Update read pointer into the ring buffer
     if (seq_next) begin
       rd_pointer_d = rd_pointer_q + 1;
     end
 
-    if (frep_cnt_d > 0 && rd_pointer_d == frep_cfg_d[0].base_pointer) begin
+    // Update frep active flag
+    if (frep_cnt_d > 0 && inst_starts_loop[0]) begin
       frep_active_d = 1'b1;
-    end
-
-    // As we enter an inner loop we must update the frep_idx to the innermost entered loop
-    if (frep_active_q) begin
-      // Handle nested loop entry
-      for (int i = 0; i < FrepDim; i++) begin
-        if (i > frep_idx_q && i < frep_cnt_d) begin
-          if (rd_pointer_d == frep_cfg_d[i].base_pointer) begin
-            frep_idx_d = i;
-          end
-        end
-      end
     end
 
     // As we complete an inner loop we must update the frep_idx to the outermost
     // non-complete loop
     if (frep_active_q && seq_next && frep_cfg_q[frep_idx_q].is_outer) begin
-      for (int i = frep_idx_q; i >= 0; i--) begin
-        // TODO replace with loop_end signal per loop
-        if (last_inst[i]) begin
-          if (last_iter[i]) begin
-            if (i == 0) begin
-              frep_idx_d = '0;
-              loop_end = 1'b1;
-              frep_active_d = 1'b0;
-            end else begin
-              frep_idx_d = i - 1;
-            end
-          end else begin
-            rd_pointer_d = frep_cfg_q[i].base_pointer;
-            break;
-          end
+      // Reset loop nest if all loops are at the end
+      if (non_ending_loops_cnt == 0) begin
+        frep_idx_d = '0;
+        loop_end = 1'b1;
+        frep_active_d = 1'b0;
+      end else begin
+        // Otherwise move to the outermost non-ending loop
+        frep_idx_d = outermost_non_ending_loop;
+        // If this loop is also at the last instruction, we must reset the
+        // read pointer to the base of the loop.
+        if (last_inst[outermost_non_ending_loop]) begin
+          rd_pointer_d = frep_cfg_q[outermost_non_ending_loop].base_pointer;
         end
       end
+    end
+
+    // As we move to the next instruction we must update the frep_idx
+    // to the innermost starting loop.
+    if (frep_active_q && !no_loop_starts) begin
+      frep_idx_d = starting_frep_idx;
     end
   end
 
@@ -559,7 +629,7 @@ module snitch_sequencer import snitch_pkg::*; #(
     qdata_argc: $unsigned(seq_qdata_argc),
     // If this repeats a previously issued instruction, communicate this
     // to subsystem (e.g. for single issuing of CAQ responses).
-    qdata_repd: (rpt_cnt_q[frep_idx_q] != 0)
+    qdata_repd: (rpt_cnt[frep_idx_q] != 0)
   };
 
   // Select bypass path iff ring buffer is empty
@@ -604,6 +674,9 @@ module snitch_sequencer import snitch_pkg::*; #(
 
   // TODO add assertion to check that frep_cnt never overflows, i.e. we
   // don't have more nested FREPs than supported
+
+  // TODO add assertion to check that, if a loop is active, and not at the last instruction
+  // the outer loops must also not be at the last instruction
 
   // Ensure that `max_inst` bits fit into assigned slot
   `ASSERT_INIT(CheckMaxInstFieldWidth, DepthBits < 11);
