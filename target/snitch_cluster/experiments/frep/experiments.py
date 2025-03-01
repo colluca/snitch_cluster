@@ -36,52 +36,51 @@ class FrepExperimentManager(ExperimentManager):
         with open(cfg_path, 'w') as f:
             f.write(cfg)
         return cfg_path
-    
+
 
 def generate_mat_size():
     sizes = list(range(8, 257, 8))
     return random.choice(sizes)
 
+
 def gen_experiment(experiments):
-    TCDM_SIZE = 1024 * 112
+    # new layout requires checking that individual matrices fit in 8banks
+    BANK_SIZE = 2 * 1024  # 3KB
+    MAX_ALLOWED_SIZE = 8 * BANK_SIZE  # Every matrix can take up maximum 8 banks
+
     i = 0
     while i < 10:
         # generate random values in [8, 16, 24, ..., 256] for m, n, k
         m = generate_mat_size()
         n = generate_mat_size()
         k = generate_mat_size()
-        
-        print(m, n, k)
-        
+
         # check if the matrices fit in TCDM
-        # TODO: add support for tiling as well
+        # new layout requires checking that individual matrices fit in 8banks
         prec = 8
         a_size = m * k * prec
         b_size = k * n * prec
         c_size = m * n * prec
-        total_size = a_size
-        total_size += b_size
-        total_size += c_size
-        total_size *= 2
-        
-        if total_size < TCDM_SIZE:
+        max_size = max(a_size, b_size, c_size)
+
+        if max_size < MAX_ALLOWED_SIZE:
             experiments.append({'m': m, 'n': n, 'k': k})
             i += 1
-    
+
     return experiments
 
+
 def main():
-    
+
     seed = 31
-    
+
     random.seed(seed)
-    
+
     # m, n and k are the dimensions of the tile
     experiments = []
-    
+
     experiments = gen_experiment(experiments)
-    print(experiments)
-    
+
     for experiment in experiments:
         experiment['app'] = 'gemm'
         experiment['m_tiles'] = 2
@@ -90,13 +89,11 @@ def main():
     manager = FrepExperimentManager(experiments)
     manager.run()
     df = manager.get_results()
-    print(df)
 
-    # df['fpu_util'] = df.apply(lambda row: row['results'].get_metric(SimRegion('hart_0', 'tile_1'), 'fpss_fpu_occupancy'), axis=1)
-    # print(df)
     df['fpu_util'] = df.apply(lambda row: row['results'].get_metric(SimRegion('hart_0', 'tile_1'), 'fpss_fpu_occupancy'), axis=1)
     print(df)
     df.to_csv('tmp.csv')
+
 
 if __name__ == '__main__':
     main()

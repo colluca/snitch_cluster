@@ -29,6 +29,8 @@ module snitch_tcdm_interconnect #(
   parameter type         mem_req_t             = logic,
   /// Payload type of the data response ports.
   parameter type         mem_rsp_t             = logic,
+  /// Address width on the request side.
+  parameter int unsigned TcdmAddrWidth         = 32,
   /// Address width on the memory side. Must be smaller than the incoming
   /// address width.
   parameter int unsigned MemAddrWidth          = 32,
@@ -85,7 +87,7 @@ module snitch_tcdm_interconnect #(
   // This generates a bank interleaved addressing scheme, where consecutive
   // addresses are routed to individual banks.
   for (genvar i = 0; i < NumInp; i++) begin : gen_bank_select
-    assign bank_select[i] = req_i[i].q.addr[ByteOffset+:SelWidth];
+    assign bank_select[i] = req_i[i].q.addr[TcdmAddrWidth-1:ByteOffset] % NumOut;
   end
 
   mem_req_chan_t [NumInp-1:0] in_req;
@@ -99,7 +101,7 @@ module snitch_tcdm_interconnect #(
     assign req_q_valid_flat[i] = req_i[i].q_valid;
     assign rsp_o[i].q_ready = rsp_q_ready_flat[i];
     assign in_req[i] = '{
-      addr: req_i[i].q.addr[ByteOffset+SelWidth+:MemAddrWidth],
+      addr: req_i[i].q.addr[TcdmAddrWidth-1:ByteOffset] / NumOut,
       write: req_i[i].q.write,
       amo: req_i[i].q.amo,
       data: req_i[i].q.data,

@@ -164,6 +164,7 @@ sources:
       - hw/snitch_cluster/src/snitch_barrier.sv
       - hw/snitch_cluster/src/snitch_fp_ss.sv
       - hw/snitch_cluster/src/snitch_shared_muldiv.sv
+      - hw/snitch_cluster/src/snitch_tcdm_ic_wrapped.sv
       # Level 2
       - hw/snitch_cluster/src/snitch_cc.sv
       - hw/snitch_cluster/src/snitch_clkdiv2.sv

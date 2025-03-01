@@ -13,6 +13,20 @@
 
 #pragma once
 
+typedef float v2f32 __attribute__((vector_size(8)));
+typedef __fp16 v4f16 __attribute__((vector_size(8)));
+typedef char v8f8 __attribute__((vector_size(8)));
+
+
+#define ALIGN_NEXT_FROM_BASE(addr, base, size) \
+    (((((addr) - (base)) + (size) - 1) / (size)) * (size) + (base))
+
+#define NR_BANKS 24
+#define HYPERBANK_OFFSET 0x18000
+#define BANK_ALIGNMENT 8
+#define TCDM_SIZE (NR_BANKS * BANK_ALIGNMENT)
+#define ALIGN_UP_TCDM(addr) ALIGN_NEXT_FROM_BASE(addr, SNRT_TCDM_START_ADDR, TCDM_SIZE)
+
 #include "gemm_fp16.h"
 #include "gemm_fp32.h"
 #include "gemm_fp64.h"
@@ -55,8 +69,8 @@ typedef struct {
 // distinct cores.
 // TODO: beta (and alpha) should be of floating-point type (same precision as
 // operands)
-void sc_st_gemm(gemm_args_t* gemm_args, void* a, void* b, uint32_t beta,
-                void* c) {
+static inline void sc_st_gemm(gemm_args_t* gemm_args, void* a, void* b,
+                              uint32_t beta, void* c) {
     gemm_fp_t impl = (gemm_fp_t)gemm_args->gemm_fp;
     precision_t prec = gemm_args->prec;
     uint32_t setup_ssr = gemm_args->setup_ssr;
@@ -75,6 +89,7 @@ void sc_st_gemm(gemm_args_t* gemm_args, void* a, void* b, uint32_t beta,
         ldb = n;
     }
     uint32_t ldc = n;
+    int elements_per_line = 8;
 
     double alpha = gemm_args->alpha;
 
@@ -82,13 +97,31 @@ void sc_st_gemm(gemm_args_t* gemm_args, void* a, void* b, uint32_t beta,
         const uint32_t compute_num = snrt_cluster_compute_core_num();
         const uint32_t compute_id = snrt_cluster_core_idx();
 
-        // Compute cores work not on contiguous blocks but on strided rows
+        // Compute cores work not on contiguo usblocks but on strided rows
         uint32_t lda_strided = compute_num * lda;
         uint32_t ldc_strided = compute_num * ldc;
 
+        //uint32_t lda_strided = compute_num * lda * 2;
+
         // Compute cores access A and C at offsets of one row from each other
-        uint32_t offsetA = compute_id * lda * prec;
-        uint32_t offsetC = compute_id * ldc * prec;
+        //uint32_t offsetA = compute_id * lda * prec;
+        //uint32_t offsetC = compute_id * ldc * prec;
+
+        // Compute cores access A and C at offsets of one row from each other Split Memory
+        uint32_t offsetA = (compute_id * lda)/elements_per_line*TCDM_SIZE;
+        uint32_t offsetC = (compute_id * ldc)/elements_per_line*TCDM_SIZE;
+
+        //uint32_t offsetC;
+        //if((compute_id*ldc)%16==0){
+        //    offsetC = (compute_id * ldc)/16 * TCDM_SIZE;
+        //}else{  //only case N=8
+        //    offsetC = (compute_id * ldc)/16 * TCDM_SIZE+8*8 ;
+        //}
+
+
+        //uint32_t offsetA = compute_id * (int)(lda/16) * prec * 32;
+        //uint32_t offsetA = (compute_id * lda * prec)/(TCDM_SIZE/2)*TCDM_SIZE+(compute_id * lda * prec)%(TCDM_SIZE/2);
+        
 
         // Compute fraction of C rows every core computes
         uint32_t frac_m = m / compute_num;
@@ -112,6 +145,7 @@ void sc_st_gemm(gemm_args_t* gemm_args, void* a, void* b, uint32_t beta,
 // k_tiles: number of tiles in K dimension
 // n_tiles: number of tiles in N dimension
 int gemm(gemm_args_t* args) {
+
     gemm_args_t* local_args = snrt_l1_next();
 
     // Copy the arguments to local memory
@@ -150,22 +184,47 @@ int gemm(gemm_args_t* args) {
     void *local_a[2];
     void *local_b[2];
     void *local_c[2];
-    void* heap_ptr = (void*)local_args + sizeof(gemm_args_t);
+
+    //void* heap_ptr = (void*)(ALIGN_UP((int)local_args + sizeof(gemm_args_t), TCDM_SIZE));
+    //void* heap_ptr = local_args + sizeof(gemm_args_t);
+    //local_a[0] = heap_ptr;
+    //heap_ptr += size_frac_a;
+    //local_b[0] = heap_ptr;
+    //heap_ptr += size_frac_b;
+    //local_c[0] = heap_ptr;
+    //heap_ptr += size_frac_c;
+    //heap_ptr = ALIGN_UP_TCDM((int)heap_ptr);
+    //local_a[1] = heap_ptr;
+    //heap_ptr += size_frac_a;
+    //local_b[1] = heap_ptr;
+    //heap_ptr += size_frac_b;
+    //local_c[1] = heap_ptr;
+
+    void* heap_ptr = (void*)(ALIGN_UP_TCDM((int)local_args + sizeof(gemm_args_t)));
+    int store_size = snrt_cluster_compute_core_num(); //Enables parallel access to banks
+    int fragmentation = 2; //Fragmentation of the TCDM
     local_a[0] = heap_ptr;
-    heap_ptr += size_frac_a;
-    local_b[0] = heap_ptr;
-    heap_ptr += size_frac_b;
-    local_c[0] = heap_ptr;
-    heap_ptr += size_frac_c;
-    local_a[1] = heap_ptr;
-    heap_ptr += size_frac_a;
-    local_b[1] = heap_ptr;
-    heap_ptr += size_frac_b;
-    local_c[1] = heap_ptr;
+    local_b[0] = heap_ptr+prec*store_size;
+    local_c[0] = heap_ptr+(prec*store_size)*2;
+    //heap_ptr+= TCDM_SIZE/2;
+    local_a[1] = heap_ptr+(prec*store_size)*0+HYPERBANK_OFFSET;
+    local_b[1] = heap_ptr+(prec*store_size)*1+HYPERBANK_OFFSET;
+    local_c[1] = heap_ptr+(prec*store_size)*2+HYPERBANK_OFFSET;
+
+
+
+    //printf("The pointer address a[0]: %p\n", local_a[0]);
+    //printf("The pointer address a[1]: %p\n", local_a[1]);
+    //printf("The pointer address b[0]: %p\n", local_b[0]);
+    //printf("The pointer address b[1]: %p\n", local_b[1]);
+    //printf("The pointer address c[0]: %p\n", local_c[0]);
+    //printf("The pointer address c[1]: %p\n", local_c[1]);
+
+    
+
 
     // Calculate number of iterations
-    int iterations = n_tiles * m_tiles + 2;
-
+    int iterations = m_tiles * n_tiles + 2;
     int buff_idx;
     int i, i_dma_out, i_dma_in, i_compute;
 
@@ -174,45 +233,66 @@ int gemm(gemm_args_t* args) {
         if (snrt_is_dm_core()) {
             // DMA out
             // (out before in to avoid overwriting data)
+
             if (i > 1) {
-                snrt_mcycle();
 
                 // Compute tile and buffer indices
                 i_dma_out = i - 2;
                 buff_idx = i_dma_out % 2;
 
                 // Copy job outputs from TCDM
-                snrt_dma_store_2d_tile(c, local_c[buff_idx], snrt_cluster_idx(),
-                                       i_dma_out, frac_m, frac_n, n, prec);
+                //snrt_dma_store_2d_tile(c, local_c[buff_idx], i_dma_out,
+                //                       0, frac_m, frac_n, n, prec);
+
+                snrt_dma_start_2d_wideptr(c+i_dma_out*size_frac_c, local_c[buff_idx], store_size*prec, store_size*prec, TCDM_SIZE, size_frac_c/(store_size*prec));
                 snrt_dma_wait_all();
 
-                snrt_mcycle();
+
             }
 
             // DMA in
-            if (i < n_tiles*m_tiles) {
-                snrt_mcycle();
-
+            if (i < m_tiles * n_tiles) {
                 // Compute tile and buffer indices
                 i_dma_in = i;
                 buff_idx = i_dma_in % 2;
 
-                // Copy job operands in TCDM
-                snrt_dma_load_1d_tile(local_b[buff_idx], b, i_dma_in,
-                                      frac_n * frac_k, prec);
-                // Load A tile only on first iteration
-                if (i_dma_in == 0) {
-                    snrt_dma_load_1d_tile(local_a[0], a, snrt_cluster_idx(),
-                                          frac_m * frac_k, prec);
-                }
-                snrt_dma_wait_all();
-                snrt_mcycle();
-            }
-        }
 
+                //Copy job operands in TCDM
+                //snrt_dma_load_1d_tile(local_b[buff_idx], b, 0,
+                //                      frac_n * frac_k, prec);
+                // Load A tile only on first iteration
+                //snrt_dma_load_1d_tile(local_a[buff_idx], a, i_dma_in,
+                //                        frac_m * frac_k, prec);
+
+
+                ////Copy job operands in split TCDM, contigious
+                //snrt_dma_start_2d_wideptr(local_a[buff_idx], a, 16, 32, 16, (int)size_frac_a/(TCDM_SIZE/2));
+                //snrt_dma_load_1d_tile(local_a[buff_idx]+(int)(size_frac_a/(TCDM_SIZE/2))*TCDM_SIZE, a+(int)(size_frac_a/(TCDM_SIZE/2))*TCDM_SIZE/2, snrt_cluster_idx(),size_frac_a%(TCDM_SIZE/2), prec);
+                //bfill = (ALIGN_UP((int)local_b[buff_idx], TCDM_SIZE)-(int)local_b[buff_idx])%(TCDM_SIZE/2);
+                //snrt_dma_load_1d_tile(local_b[buff_idx], b, i_dma_in, bfill, prec);
+                //snrt_dma_start_2d_wideptr(ALIGN_UP((int)local_b[buff_idx], TCDM_SIZE/2), b+bfill, 16, 32, 16, (int)((size_frac_b-bfill)/(TCDM_SIZE/2)));
+                //snrt_dma_load_1d_tile(ALIGN_UP((int)local_b[buff_idx], TCDM_SIZE)+(TCDM_SIZE/2)*buff_idx+(int)(size_frac_b-bfill)/(TCDM_SIZE/2)*TCDM_SIZE, b+bfill+(int)(size_frac_b-bfill)/(TCDM_SIZE/2)*TCDM_SIZE, i_dma_in, (size_frac_b-bfill)%(TCDM_SIZE/2), prec);
+
+                ////Copy job operands in split TCDM, non contigious
+                //snrt_dma_start_2d_wideptr(local_a[buff_idx], a+i_dma_in*size_frac_a, TCDM_SIZE/4, TCDM_SIZE, TCDM_SIZE/4, 4*size_frac_a/TCDM_SIZE);
+                //snrt_dma_start_2d_wideptr(local_b[buff_idx], b, TCDM_SIZE/4, TCDM_SIZE, TCDM_SIZE/4, 4*size_frac_b/TCDM_SIZE);   
+                snrt_dma_start_2d_wideptr(local_a[buff_idx], a+i_dma_in*size_frac_a, store_size*prec, TCDM_SIZE, store_size*prec, size_frac_a/(store_size*prec));
+                snrt_dma_start_2d_wideptr(local_b[buff_idx], b, store_size*prec, TCDM_SIZE, store_size*prec, size_frac_b/(store_size*prec));   
+                snrt_dma_wait_all();
+                if(i==0){
+                    snrt_cluster_hw_barrier();
+                }
+            }
+
+ 
+            //snrt_cluster_hw_barrier();
+            //snrt_cluster_hw_barrier();
+
+        }
+        //snrt_cluster_hw_barrier();
         // Compute
         if (snrt_is_compute_core()) {
-            if (i > 0 && i < (n_tiles*m_tiles) + 1) {
+            if (i > 0 && i < (m_tiles * n_tiles + 1)) {
 
                 // Compute tile and buffer indices
                 i_compute = i - 1;
@@ -224,13 +304,18 @@ int gemm(gemm_args_t* args) {
                 if (transb) {
                     ldb = frac_k;
                 }
-                sc_st_gemm(local_args, local_a[0], local_b[buff_idx], beta,
+                sc_st_gemm(local_args, local_a[buff_idx], local_b[buff_idx], beta,
                            local_c[buff_idx]);
-            }
+
+
+           }else if (i==0){
+            snrt_cluster_hw_barrier();
+        }
         }
 
         // Synchronize cores after first iteration, exclusively for benchmarking
         snrt_cluster_hw_barrier();
+        
     }
 
 

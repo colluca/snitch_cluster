@@ -36,14 +36,20 @@ void gemm_fp64_naive(uint32_t M, uint32_t N, uint32_t K, void* A_p,
             }
         }
     } else if (!ta && tb) {
+        int cnt = 0;
+        int elements_per_line = TCDM_ALIGNMENT/2/8;
         for (uint32_t m = 0; m < M; m++) {
             for (uint32_t n = 0; n < N; n++) {
+                cnt = 0;
                 double c0 = multiply_opt(C[m * ldC + n], BETA);
-                for (uint32_t k = 0; k < K; k++) {
-                    c0 += A[k + m * ldA] * B[k + n * ldB];
+                for (uint32_t k = 0; k < K/elements_per_line; k++) {
+                    for (uint32_t ki = 0; ki < elements_per_line; ki++){
+                        c0 += A[ki + k*TCDM_ALIGNMENT/sizeof(double) + m * ldA * 2] * B[ki + k*TCDM_ALIGNMENT/sizeof(double) + n * ldB * 2];
+                        cnt++;
+                    }
                 }
-                C[m * ldC + n] = c0;
-            }
+                C[2 * m * ldC + n%(elements_per_line) + (n/elements_per_line)*2*elements_per_line] = c0;
+            } 
         }
     } else {
         for (uint32_t m = 0; m < M; m++) {
@@ -69,6 +75,7 @@ void gemm_fp64_opt(uint32_t M, uint32_t N, uint32_t K, void* A_p, uint32_t ldA,
     // Should be at least as high as the FMA delay
     // for maximum utilization
     const uint32_t unroll = 8;
+    int elements_per_line = 8;
 
     // SSR strides and bounds only have to be configured
     // once in the beginning
@@ -82,38 +89,48 @@ void gemm_fp64_opt(uint32_t M, uint32_t N, uint32_t K, void* A_p, uint32_t ldA,
                              ssr0_i[1], ssr0_i[2], ssr0_i[3]);
             snrt_ssr_repeat(SNRT_SSR_DM0, unroll);
         } else {
-            const uint32_t ssr0_b[4] = {unroll, K, N / unroll, M};
-            const uint32_t ssr0_i[4] = {0, 8, 0, 8 * ldA};
-
-            snrt_ssr_loop_3d(SNRT_SSR_DM0, ssr0_b[1], ssr0_b[2], ssr0_b[3],
-                             ssr0_i[1], ssr0_i[2], ssr0_i[3]);
+            const uint32_t ssr0_b[5] = {unroll, elements_per_line, K/(elements_per_line), N / unroll, M};
+            const uint32_t ssr0_i[5] = {0, 8, TCDM_SIZE, 0, ldA*TCDM_SIZE /elements_per_line};
+            snrt_ssr_loop_4d(SNRT_SSR_DM0, ssr0_b[1], ssr0_b[2], ssr0_b[3],ssr0_b[4],
+                             ssr0_i[1], ssr0_i[2], ssr0_i[3],ssr0_i[4]);
             snrt_ssr_repeat(SNRT_SSR_DM0, unroll);
         }
 
         // Second matrix is stored in transposed format
         if (tb) {
-            const uint32_t ssr1_b[4] = {unroll, K, N / unroll, M};
-            const uint32_t ssr1_i[4] = {8 * ldB, 8, 8 * ldB * unroll, 0};
-
+            int unroll_offset = TCDM_SIZE*ldB/elements_per_line;
+            const uint32_t ssr1_b[4] = {unroll, elements_per_line, K/(elements_per_line), N / unroll, M};
+            const uint32_t ssr1_i[4] = {unroll_offset, 8, TCDM_SIZE, unroll_offset * unroll, 0};
             snrt_ssr_loop_4d(SNRT_SSR_DM1, ssr1_b[0], ssr1_b[1], ssr1_b[2],
                              ssr1_b[3], ssr1_i[0], ssr1_i[1], ssr1_i[2],
                              ssr1_i[3]);
+
         } else {
+            int unroll_offset = TCDM_SIZE*ldB/elements_per_line;
             const uint32_t ssr1_b[4] = {unroll, K, N / unroll, M};
-            const uint32_t ssr1_i[4] = {8, 8 * ldB, 8 * unroll, 0};
-
-            snrt_ssr_loop_4d(SNRT_SSR_DM1, ssr1_b[0], ssr1_b[1], ssr1_b[2],
-                             ssr1_b[3], ssr1_i[0], ssr1_i[1], ssr1_i[2],
-                             ssr1_i[3]);
+            const uint32_t ssr1_i[4] = {8, unroll_offset, TCDM_SIZE, 0};
+            snrt_ssr_loop_4d(SNRT_SSR_DM1, ssr1_b[0], ssr1_b[1], ssr1_b[2], ssr1_b[3],
+                            ssr1_i[0], ssr1_i[1], ssr1_i[2], ssr1_i[3]);
         }
 
-        const uint32_t ssr2_b[3] = {unroll, N/unroll, M};
-        const uint32_t ssr2_i[3] = {8, 8, ldC * 8};
-
-        snrt_ssr_loop_3d(SNRT_SSR_DM2, ssr2_b[0], ssr2_b[1], ssr2_b[2], ssr2_i[0], ssr2_i[1], ssr2_i[2]);
+    const uint32_t ssr2_b[3] = {unroll,  N/unroll, M};
+    const uint32_t ssr2_i[3] = {8, TCDM_SIZE, ldC * TCDM_SIZE/8};
+    snrt_ssr_loop_3d(SNRT_SSR_DM2, ssr2_b[0], ssr2_b[1], ssr2_b[2], ssr2_i[0], ssr2_i[1], ssr2_i[2]);
     }
 
-    // SSR start address need to be configured each time
+
+    //         // Store results back
+    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 0] = c[0];
+    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 1] = c[1];
+    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 2] = c[2];
+    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 3] = c[3];
+    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 4] = c[4];
+    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 5] = c[5];
+    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 6] = c[6];
+    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 7] = c[7];
+    //         n += unroll;
+
+
     snrt_ssr_read(SNRT_SSR_DM0, SNRT_SSR_4D, A);
     snrt_ssr_read(SNRT_SSR_DM1, SNRT_SSR_4D, B);
     snrt_ssr_write(SNRT_SSR_DM2, SNRT_SSR_3D, C);
@@ -159,5 +176,80 @@ void gemm_fp64_opt(uint32_t M, uint32_t N, uint32_t K, void* A_p, uint32_t ldA,
     snrt_fpu_fence();
     snrt_mcycle();
 
+
+    // snrt_ssr_enable();
+    // // SSR start address need to be configured each time
+    // for (uint32_t m = 0; m < M; m++) {
+    //     //snrt_ssr_read(SNRT_SSR_DM1, SNRT_SSR_4D, B);
+    //     //snrt_ssr_read(SNRT_SSR_DM0, SNRT_SSR_3D, A + m * ldA*TCDM_SIZE /elements_per_line/8);
+    //     //snrt_ssr_enable();
+        
+    //     snrt_cluster_hw_barrier();
+
+    //     int c_elements_per_line;
+    //     uint32_t n = 0;
+    //     for (uint32_t n0 = 0; n0 < N / unroll; n0++) {
+    //         double c[unroll];
+    //         c_elements_per_line = 2*elements_per_line;
+
+    //         // Load intermediate result
+    //         if (BETA != 0) {
+    //             c[0] = C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 0];
+    //             c[1] = C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 1];
+    //             c[2] = C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 2];
+    //             c[3] = C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 3];
+    //             c[4] = C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 4];
+    //             c[5] = C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 5];
+    //             c[6] = C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 6];
+    //             c[7] = C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 7];
+    //         } else {
+    //             c[0] = 0.0;
+    //             c[1] = 0.0;
+    //             c[2] = 0.0;
+    //             c[3] = 0.0;
+    //             c[4] = 0.0;
+    //             c[5] = 0.0;
+    //             c[6] = 0.0;
+    //             c[7] = 0.0;
+    //         }
+    //         asm volatile(
+    //             //"csrr x0, 0x7C2 \n" 
+    //             "frep.o %[n_frep], %[unroll], 0, 0 \n"
+    //             "fmadd.d %[c0], ft0, ft1, %[c0] \n"
+    //             "fmadd.d %[c1], ft0, ft1, %[c1] \n"
+    //             "fmadd.d %[c2], ft0, ft1, %[c2] \n"
+    //             "fmadd.d %[c3], ft0, ft1, %[c3] \n"
+    //             "fmadd.d %[c4], ft0, ft1, %[c4] \n"
+    //             "fmadd.d %[c5], ft0, ft1, %[c5] \n"
+    //             "fmadd.d %[c6], ft0, ft1, %[c6] \n"
+    //             "fmadd.d %[c7], ft0, ft1, %[c7] \n"
+    //             : [ c0 ] "+f"(c[0]), [ c1 ] "+f"(c[1]), [ c2 ] "+f"(c[2]),
+    //               [ c3 ] "+f"(c[3]), [ c4 ] "+f"(c[4]), [ c5 ] "+f"(c[5]),
+    //               [ c6 ] "+f"(c[6]), [ c7 ] "+f"(c[7])
+    //             : [ n_frep ] "r"(K - 1), [ unroll ] "i"(unroll)
+    //             : "ft0", "ft1", "ft2");
+
+    //         // Store results back
+    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 0] = c[0];
+    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 1] = c[1];
+    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 2] = c[2];
+    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 3] = c[3];
+    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 4] = c[4];
+    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 5] = c[5];
+    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 6] = c[6];
+    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 7] = c[7];
+    //         n += unroll;
+
+    //         //printf("c[0]: %d\n", c[0]);
+    //         //printf("c[5]: %d\n", c[4]);
+    //         //printf("c[7]: %d\n", c[7]);
+    //     }
+
+    //     // Clean up of leftover columns
+        
+
+    // }
+    // snrt_fpu_fence();
     snrt_ssr_disable();
+
 }

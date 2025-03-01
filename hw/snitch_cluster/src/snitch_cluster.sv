@@ -252,6 +252,7 @@ module snitch_cluster
   localparam int unsigned TCDMMemAddrWidth = $clog2(TCDMDepth);
   localparam int unsigned TCDMSize = NrBanks * TCDMDepth * (NarrowDataWidth/8);
   localparam int unsigned TCDMAddrWidth = $clog2(TCDMSize);
+  localparam int unsigned TCDMSizeNapotAligned = 1 << TCDMAddrWidth;
   localparam int unsigned BanksPerSuperBank = WideDataWidth / NarrowDataWidth;
   localparam int unsigned NrSuperBanks = NrBanks / BanksPerSuperBank;
 
@@ -267,7 +268,7 @@ module snitch_cluster
 
   localparam int unsigned NrTCDMPortsCores = get_tcdm_port_offs(NrCores);
   localparam int unsigned NumTCDMIn = NrTCDMPortsCores + 1;
-  localparam logic [PhysicalAddrWidth-1:0] TCDMMask = ~(TCDMSize-1);
+  localparam logic [PhysicalAddrWidth-1:0] TCDMMask = ~(TCDMSizeNapotAligned - 1);
 
   // Core Requests, SoC Request, PTW.
   localparam int unsigned NrNarrowMasters = 3;
@@ -458,7 +459,7 @@ module snitch_cluster
   // Calculate start and end address of TCDM based on the `cluster_base_addr_i`.
   addr_t tcdm_start_address, tcdm_end_address;
   assign tcdm_start_address = (cluster_base_addr_i & TCDMMask);
-  assign tcdm_end_address   = (tcdm_start_address + TCDMSize) & TCDMMask;
+  assign tcdm_end_address   = (tcdm_start_address + TCDMSizeNapotAligned) & TCDMMask;
 
   addr_t cluster_periph_start_address, cluster_periph_end_address;
   assign cluster_periph_start_address = tcdm_end_address;
@@ -469,7 +470,7 @@ module snitch_cluster
   assign zero_mem_end_address   = cluster_periph_end_address + ZeroMemorySize * 1024;
 
   localparam addr_t TCDMAliasStart = AliasRegionBase & TCDMMask;
-  localparam addr_t TCDMAliasEnd   = (TCDMAliasStart + TCDMSize) & TCDMMask;
+  localparam addr_t TCDMAliasEnd   = (TCDMAliasStart + TCDMSizeNapotAligned) & TCDMMask;
 
   localparam addr_t PeriphAliasStart = TCDMAliasEnd;
   localparam addr_t PeriphAliasEnd   = TCDMAliasEnd + ClusterPeriphSize * 1024;
@@ -682,7 +683,7 @@ module snitch_cluster
   assign ext_dma_req.q.amo = reqrsp_pkg::AMONone;
   assign ext_dma_req.q.user = '0;
 
-  snitch_tcdm_interconnect #(
+  snitch_tcdm_ic_wrapped #(
     .NumInp (1),
     .NumOut (NrSuperBanks),
     .tcdm_req_t (tcdm_dma_req_t),
@@ -690,6 +691,7 @@ module snitch_cluster
     .mem_req_t (mem_dma_req_t),
     .mem_rsp_t (mem_dma_rsp_t),
     .user_t (logic),
+    .TcdmAddrWidth (TCDMAddrWidth),
     .MemAddrWidth (TCDMMemAddrWidth),
     .DataWidth (WideDataWidth),
     .MemoryResponseLatency (MemoryMacroLatency)
@@ -740,8 +742,10 @@ module snitch_cluster
       tc_sram_impl #(
         .NumWords (TCDMDepth),
         .DataWidth (NarrowDataWidth),
+        // TODO should we parameterize this?
         .ByteWidth (8),
         .NumPorts (1),
+        // TODO should we parameterize this?
         .Latency (1),
         .impl_in_t (sram_cfg_t)
       ) i_data_mem (
@@ -796,13 +800,14 @@ module snitch_cluster
     end
   end
 
-  snitch_tcdm_interconnect #(
+  snitch_tcdm_ic_wrapped #(
     .NumInp (NumTCDMIn),
     .NumOut (NrBanks),
     .tcdm_req_t (tcdm_req_t),
     .tcdm_rsp_t (tcdm_rsp_t),
     .mem_req_t (mem_req_t),
     .mem_rsp_t (mem_rsp_t),
+    .TcdmAddrWidth (TCDMAddrWidth),
     .MemAddrWidth (TCDMMemAddrWidth),
     .DataWidth (NarrowDataWidth),
     .user_t (tcdm_user_t),
@@ -1305,10 +1310,11 @@ module snitch_cluster
   // Sanity check the parameters. Not every configuration makes sense.
   `ASSERT_INIT(CheckSuperBankSanity, NrBanks >= BanksPerSuperBank);
   `ASSERT_INIT(CheckSuperBankFactor, (NrBanks % BanksPerSuperBank) == 0);
-  // Check that the cluster base address aligns to the TCDMSize.
-  `ASSERT(ClusterBaseAddrAlign, ((TCDMSize - 1) & cluster_base_addr_i) == 0)
-  // Check that the cluster alias address, if enabled, aligns to the TCDMSize.
-  `ASSERT_INIT(AliasRegionAddrAlign, ~AliasRegionEnable || ((TCDMSize - 1) & AliasRegionBase) == 0)
+  // TODO hyperbank assertions
+  // Check that the cluster base address aligns to the TCDMSizeNapotAligned.
+  `ASSERT(ClusterBaseAddrAlign, ((TCDMSizeNapotAligned - 1) & cluster_base_addr_i) == 0)
+  // Check that the cluster alias address, if enabled, aligns to the TCDMSizeNapotAligned.
+  `ASSERT_INIT(AliasRegionAddrAlign, ~AliasRegionEnable || ((TCDMSizeNapotAligned - 1) & AliasRegionBase) == 0)
   // Make sure we only have one DMA in the system.
   `ASSERT_INIT(NumberDMA, $onehot0(Xdma))
 
