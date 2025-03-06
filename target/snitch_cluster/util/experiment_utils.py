@@ -85,9 +85,9 @@ class ExperimentManager:
     def derive_env(self, experiment):
         vars = {}
         if 'vcd_start' in experiment:
-            vars['vcd_start'] = str(experiment['vcd_start'])
+            vars['VCD_START'] = str(experiment['vcd_start'])
         if 'vcd_end' in experiment:
-            vars['vcd_end'] = str(experiment['vcd_end'])
+            vars['VCD_END'] = str(experiment['vcd_end'])
         return common.extend_environment(vars)
 
     def derive_experiment_info(self, experiment):

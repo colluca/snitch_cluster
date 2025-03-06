@@ -7,7 +7,6 @@
 
 from snitch.target.SimResults import SimRegion
 from snitch.target.experiment_utils import ExperimentManager
-import snitch.util.sim.data_utils as du
 import random
 
 from mako.template import Template
@@ -88,11 +87,11 @@ def main():
 
     manager = FrepExperimentManager(experiments)
     manager.run()
-    df = manager.get_results()
+    manager.export_power_experiments(SimRegion('hart_0', 'tile_1'))
 
+    df = manager.get_results()
     df['fpu_util'] = df.apply(lambda row: row['results'].get_metric(SimRegion('hart_0', 'tile_1'), 'fpss_fpu_occupancy'), axis=1)
     print(df)
-    df.to_csv('tmp.csv')
 
 
 if __name__ == '__main__':

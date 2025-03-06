@@ -1,11 +1,22 @@
 Run RTL experiments:
 ```
-./experiments.py none.yaml sw run visual-trace -j
+make clean-vsim
+make bin/snitch_cluster.vsim
+./experiments.py --actions sw run visual-trace -j
 ```
 
-Run PLS experiments:
+PLS simulations:
+
+To test the PLS results
+```
+make clean-vsim
+make PL_SIM=1 DEBUG=ON bin/snitch_cluster.vsim
+./experiments.py --actions run -j --run-dir pls_check
+```
+
+To run the power simulation
 ```
 make clean-vsim
 make PL_SIM=1 DEBUG=ON VCD_DUMP=1 bin/snitch_cluster.vsim
-./experiments.py pls.yaml run power -j --run-dir pls
+./experiments.py power.yaml --actions run power -j --run-dir pls
 ```
