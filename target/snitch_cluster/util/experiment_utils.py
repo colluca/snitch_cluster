@@ -48,14 +48,17 @@ class ExperimentManager:
         self.power_dir = self.dir / 'power'
 
         # Get experiments
-        if experiments is not None:
-            self.experiments = experiments
-        else:
+        if self.args.testlist is not None:
             experiments_path = Path(self.args.testlist).absolute()
             with open(experiments_path, 'r') as f:
                 self.yaml = yaml.safe_load(f)
 
             self.experiments = deepcopy(self.yaml['experiments'])
+        elif experiments is not None:
+            self.experiments = experiments
+            self.yaml = {'experiments': deepcopy(self.experiments)}
+        else:
+            raise ValueError('No experiments provided.')
 
         # Derive experiment information
         for experiment in self.experiments:
@@ -64,7 +67,7 @@ class ExperimentManager:
     @staticmethod
     def parser():
         parser = run.get_parser()
-        parser.add_argument('actions', nargs='*', default='none', choices=ACTIONS, help='List of actions')
+        parser.add_argument('--actions', nargs='+', default='none', choices=ACTIONS, help='List of actions')
         return parser
 
     def derive_axes(self, experiment):
@@ -80,7 +83,12 @@ class ExperimentManager:
         return base / experiment['name']
 
     def derive_env(self, experiment):
-        return None
+        vars = {}
+        if 'vcd_start' in experiment:
+            vars['vcd_start'] = str(experiment['vcd_start'])
+        if 'vcd_end' in experiment:
+            vars['vcd_end'] = str(experiment['vcd_end'])
+        return common.extend_environment(vars)
 
     def derive_experiment_info(self, experiment):
         experiment['axes'] = self.derive_axes(experiment)
@@ -193,6 +201,24 @@ class ExperimentManager:
                 return_code = process.wait()
                 if return_code != 0:
                     raise Exception(f'Failed to estimate power for experiment {i}')
+
+    def export_power_experiments(self, start_region, end_region=None, path='power.yaml'):
+        # Extract VCD intervals
+        df = self.get_results()
+        vcd_interval = df.apply(
+            lambda row: row['results'].get_interval(start_region, end_region),
+            axis=1
+        )
+
+        # Extend experiments with VCD intervals
+        for i, experiment in enumerate(self.yaml['experiments']):
+            vcd_start, vcd_end = vcd_interval.iloc[i]
+            experiment['vcd_start'] = vcd_start
+            experiment['vcd_end'] = vcd_end
+
+        # Save power experiments to a YAML file
+        with open(path, 'w') as f:
+            yaml.dump(self.yaml, f, sort_keys=False)
 
     def get_results(self, source=None):
         """Returns a DataFrame of SimResults objects."""
