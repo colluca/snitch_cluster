@@ -42,9 +42,17 @@ def generate_mat_size():
     return random.choice(sizes)
 
 
+def calculate_total_size(m, n, k):
+    prec = 8
+    a_size = m * k * prec
+    b_size = k * n * prec
+    c_size = m * n * prec
+    return 2 * (a_size + b_size + c_size)
+
+
 def gen_experiment(experiments):
     # new layout requires checking that individual matrices fit in 8banks
-    BANK_SIZE = 2 * 1024  # 3KB
+    BANK_SIZE = 1 * 1024  # 2KiB
     MAX_ALLOWED_SIZE = 8 * BANK_SIZE  # Every matrix can take up maximum 8 banks
 
     i = 0
@@ -92,6 +100,7 @@ def main():
 
     df = manager.get_results()
     df['fpu_util'] = df.apply(lambda row: row['results'].get_metric(SimRegion('hart_0', 'tile_1'), 'fpss_fpu_occupancy'), axis=1)
+    df['size (KiB)'] = df.apply(lambda row: calculate_total_size(row['m'], row['n'], row['k']) / 1024, axis=1)
     print(df)
 
 

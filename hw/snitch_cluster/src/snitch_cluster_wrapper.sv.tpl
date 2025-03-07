@@ -96,6 +96,7 @@ module ${cfg['name']}_wrapper (
     .ZeroMemorySize (${cfg['zero_mem_size']}),
     .ClusterPeriphSize (${cfg['cluster_periph_size']}),
     .NrBanks (${cfg['tcdm']['banks']}),
+    .NrHyperBanks (${cfg['tcdm']['hyperbanks']}),
     .DMANumAxInFlight (${cfg['dma_axi_req_fifo_depth']}),
     .DMAReqFifoDepth (${cfg['dma_req_fifo_depth']}),
     .DMANumChannels (${cfg['dma_nr_channels']}),

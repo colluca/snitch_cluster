@@ -15,6 +15,7 @@
         tcdm: {
             size: 96,
             banks: 48,
+            hyperbanks: 2,
         },
         cluster_periph_size: 64, // kB
         zero_mem_size: 64, // kB

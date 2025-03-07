@@ -54,6 +54,8 @@ module snitch_cluster
   /// as cores. If SSRs are enabled, we recommend 4 times the the number of
   /// banks.
   parameter int unsigned NrBanks            = NrCores,
+  /// Number of Hyperbanks.
+  parameter int unsigned NrHyperBanks       = 1,
   /// Size of DMA AXI buffer.
   parameter int unsigned DMANumAxInFlight   = 3,
   /// Size of DMA request fifo.
@@ -253,6 +255,7 @@ module snitch_cluster
   localparam int unsigned TCDMSize = NrBanks * TCDMDepth * (NarrowDataWidth/8);
   localparam int unsigned TCDMAddrWidth = $clog2(TCDMSize);
   localparam int unsigned TCDMSizeNapotAligned = 1 << TCDMAddrWidth;
+  localparam int unsigned BanksPerHyperBank = NrBanks / NrHyperBanks;
   localparam int unsigned BanksPerSuperBank = WideDataWidth / NarrowDataWidth;
   localparam int unsigned NrSuperBanks = NrBanks / BanksPerSuperBank;
 
@@ -686,6 +689,7 @@ module snitch_cluster
   snitch_tcdm_ic_wrapped #(
     .NumInp (1),
     .NumOut (NrSuperBanks),
+    .NumHyperBanks (NrHyperBanks),
     .tcdm_req_t (tcdm_dma_req_t),
     .tcdm_rsp_t (tcdm_dma_rsp_t),
     .mem_req_t (mem_dma_req_t),
@@ -803,6 +807,7 @@ module snitch_cluster
   snitch_tcdm_ic_wrapped #(
     .NumInp (NumTCDMIn),
     .NumOut (NrBanks),
+    .NumHyperBanks (NrHyperBanks),
     .tcdm_req_t (tcdm_req_t),
     .tcdm_rsp_t (tcdm_rsp_t),
     .mem_req_t (mem_req_t),
@@ -1310,6 +1315,8 @@ module snitch_cluster
   // Sanity check the parameters. Not every configuration makes sense.
   `ASSERT_INIT(CheckSuperBankSanity, NrBanks >= BanksPerSuperBank);
   `ASSERT_INIT(CheckSuperBankFactor, (NrBanks % BanksPerSuperBank) == 0);
+  `ASSERT_INIT(CheckHyperBankFactor, (NrBanks % NrHyperBanks) == 0);
+  `ASSERT_INIT(CheckSuperBankInHyperBank, (BanksPerHyperBank % BanksPerSuperBank) == 0);
   // TODO hyperbank assertions
   // Check that the cluster base address aligns to the TCDMSizeNapotAligned.
   `ASSERT(ClusterBaseAddrAlign, ((TCDMSizeNapotAligned - 1) & cluster_base_addr_i) == 0)

@@ -90,7 +90,7 @@ void gemm_fp64_opt(uint32_t M, uint32_t N, uint32_t K, void* A_p, uint32_t ldA,
             snrt_ssr_repeat(SNRT_SSR_DM0, unroll);
         } else {
             const uint32_t ssr0_b[5] = {unroll, elements_per_line, K/(elements_per_line), N / unroll, M};
-            const uint32_t ssr0_i[5] = {0, 8, TCDM_SIZE, 0, ldA*TCDM_SIZE /elements_per_line};
+            const uint32_t ssr0_i[5] = {0, 8, HYPERBANK_ALIGNMENT, 0, ldA*HYPERBANK_ALIGNMENT /elements_per_line};
             snrt_ssr_loop_4d(SNRT_SSR_DM0, ssr0_b[1], ssr0_b[2], ssr0_b[3],ssr0_b[4],
                              ssr0_i[1], ssr0_i[2], ssr0_i[3],ssr0_i[4]);
             snrt_ssr_repeat(SNRT_SSR_DM0, unroll);
@@ -98,36 +98,36 @@ void gemm_fp64_opt(uint32_t M, uint32_t N, uint32_t K, void* A_p, uint32_t ldA,
 
         // Second matrix is stored in transposed format
         if (tb) {
-            int unroll_offset = TCDM_SIZE*ldB/elements_per_line;
+            int unroll_offset = HYPERBANK_ALIGNMENT*ldB/elements_per_line;
             const uint32_t ssr1_b[4] = {unroll, elements_per_line, K/(elements_per_line), N / unroll, M};
-            const uint32_t ssr1_i[4] = {unroll_offset, 8, TCDM_SIZE, unroll_offset * unroll, 0};
+            const uint32_t ssr1_i[4] = {unroll_offset, 8, HYPERBANK_ALIGNMENT, unroll_offset * unroll, 0};
             snrt_ssr_loop_4d(SNRT_SSR_DM1, ssr1_b[0], ssr1_b[1], ssr1_b[2],
                              ssr1_b[3], ssr1_i[0], ssr1_i[1], ssr1_i[2],
                              ssr1_i[3]);
 
         } else {
-            int unroll_offset = TCDM_SIZE*ldB/elements_per_line;
+            int unroll_offset = HYPERBANK_ALIGNMENT*ldB/elements_per_line;
             const uint32_t ssr1_b[4] = {unroll, K, N / unroll, M};
-            const uint32_t ssr1_i[4] = {8, unroll_offset, TCDM_SIZE, 0};
+            const uint32_t ssr1_i[4] = {8, unroll_offset, HYPERBANK_ALIGNMENT, 0};
             snrt_ssr_loop_4d(SNRT_SSR_DM1, ssr1_b[0], ssr1_b[1], ssr1_b[2], ssr1_b[3],
                             ssr1_i[0], ssr1_i[1], ssr1_i[2], ssr1_i[3]);
         }
 
     const uint32_t ssr2_b[3] = {unroll,  N/unroll, M};
-    const uint32_t ssr2_i[3] = {8, TCDM_SIZE, ldC * TCDM_SIZE/8};
+    const uint32_t ssr2_i[3] = {8, HYPERBANK_ALIGNMENT, ldC * HYPERBANK_ALIGNMENT/8};
     snrt_ssr_loop_3d(SNRT_SSR_DM2, ssr2_b[0], ssr2_b[1], ssr2_b[2], ssr2_i[0], ssr2_i[1], ssr2_i[2]);
     }
 
 
     //         // Store results back
-    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 0] = c[0];
-    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 1] = c[1];
-    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 2] = c[2];
-    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 3] = c[3];
-    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 4] = c[4];
-    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 5] = c[5];
-    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 6] = c[6];
-    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 7] = c[7];
+    //         C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 0] = c[0];
+    //         C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 1] = c[1];
+    //         C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 2] = c[2];
+    //         C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 3] = c[3];
+    //         C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 4] = c[4];
+    //         C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 5] = c[5];
+    //         C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 6] = c[6];
+    //         C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 7] = c[7];
     //         n += unroll;
 
 
@@ -181,7 +181,7 @@ void gemm_fp64_opt(uint32_t M, uint32_t N, uint32_t K, void* A_p, uint32_t ldA,
     // // SSR start address need to be configured each time
     // for (uint32_t m = 0; m < M; m++) {
     //     //snrt_ssr_read(SNRT_SSR_DM1, SNRT_SSR_4D, B);
-    //     //snrt_ssr_read(SNRT_SSR_DM0, SNRT_SSR_3D, A + m * ldA*TCDM_SIZE /elements_per_line/8);
+    //     //snrt_ssr_read(SNRT_SSR_DM0, SNRT_SSR_3D, A + m * ldA*HYPERBANK_ALIGNMENT /elements_per_line/8);
     //     //snrt_ssr_enable();
         
     //     snrt_cluster_hw_barrier();
@@ -194,14 +194,14 @@ void gemm_fp64_opt(uint32_t M, uint32_t N, uint32_t K, void* A_p, uint32_t ldA,
 
     //         // Load intermediate result
     //         if (BETA != 0) {
-    //             c[0] = C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 0];
-    //             c[1] = C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 1];
-    //             c[2] = C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 2];
-    //             c[3] = C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 3];
-    //             c[4] = C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 4];
-    //             c[5] = C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 5];
-    //             c[6] = C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 6];
-    //             c[7] = C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 7];
+    //             c[0] = C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 0];
+    //             c[1] = C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 1];
+    //             c[2] = C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 2];
+    //             c[3] = C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 3];
+    //             c[4] = C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 4];
+    //             c[5] = C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 5];
+    //             c[6] = C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 6];
+    //             c[7] = C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 7];
     //         } else {
     //             c[0] = 0.0;
     //             c[1] = 0.0;
@@ -230,14 +230,14 @@ void gemm_fp64_opt(uint32_t M, uint32_t N, uint32_t K, void* A_p, uint32_t ldA,
     //             : "ft0", "ft1", "ft2");
 
     //         // Store results back
-    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 0] = c[0];
-    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 1] = c[1];
-    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 2] = c[2];
-    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 3] = c[3];
-    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 4] = c[4];
-    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 5] = c[5];
-    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 6] = c[6];
-    //         C[m * ldC/elements_per_line*TCDM_SIZE/8 + n%(elements_per_line) + (n/elements_per_line)*TCDM_SIZE/8  + 7] = c[7];
+    //         C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 0] = c[0];
+    //         C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 1] = c[1];
+    //         C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 2] = c[2];
+    //         C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 3] = c[3];
+    //         C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 4] = c[4];
+    //         C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 5] = c[5];
+    //         C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 6] = c[6];
+    //         C[m * ldC/elements_per_line*HYPERBANK_ALIGNMENT/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_ALIGNMENT/8  + 7] = c[7];
     //         n += unroll;
 
     //         //printf("c[0]: %d\n", c[0]);

@@ -355,8 +355,8 @@ class SnitchCluster(Generator):
         #     log.error("The TCDM size must be a power of two.")
         # elif is_pow2(self.cfg['tcdm']['banks']):
         #     log.error("The amount of banks must be a power of two.")
-        elif (self.cfg['tcdm']['banks'] % 2) != 0:
-            log.error("The amount of banks must be a multiple of two.")
+        elif (self.cfg['tcdm']['banks'] % self.cfg['tcdm']['hyperbanks']) != 0:
+            log.error("Number of banks must be an integer multiple of number of hyperbanks.")
         else:
             failed = False
 

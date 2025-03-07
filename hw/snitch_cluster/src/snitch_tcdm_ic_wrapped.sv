@@ -7,12 +7,15 @@
 
 `include "mem_interface/typedef.svh"
 `include "common_cells/registers.svh"
+`include "common_cells/assertions.svh"
 
 module snitch_tcdm_ic_wrapped #(
   /// Number of inputs into the interconnect (`> 0`).
   parameter int unsigned NumInp                = 32'd0,
   /// Number of outputs from the interconnect (`> 0`).
   parameter int unsigned NumOut                = 32'd0,
+  /// Number of hyperbanks.
+  parameter int unsigned NumHyperBanks         = 32'd0,
   /// Radix of the individual switch points of the network.
   /// Currently supported are `32'd2` and `32'd4`.
   parameter int unsigned Radix                 = 32'd2,
@@ -57,10 +60,8 @@ module snitch_tcdm_ic_wrapped #(
   input  mem_rsp_t            [NumOut-1:0] mem_rsp_i
 );
 
-  localparam int unsigned NrHyperBanks = 2;
-  localparam int unsigned BanksPerHyperBank = NumOut / NrHyperBanks;
-
-  localparam int unsigned VirtualMemAddrWidth = MemAddrWidth + 1;
+  localparam int unsigned BanksPerHyperBank = NumOut / NumHyperBanks;
+  localparam int unsigned VirtualMemAddrWidth = MemAddrWidth + $clog2(NumHyperBanks);
   // TODO we can pass the parameters we need from the top level instead of redefining them here
   localparam int unsigned StrbWidth = DataWidth / 8;
   typedef logic [VirtualMemAddrWidth-1:0] virtual_mem_addr_t;
@@ -75,36 +76,52 @@ module snitch_tcdm_ic_wrapped #(
   virtual_mem_req_t [BanksPerHyperBank-1:0] ic_mem_req;
   mem_rsp_t         [BanksPerHyperBank-1:0] ic_mem_rsp;
 
-  // Instantiate one tcdm_demux per bank in the hyperbank
-  for (genvar i = 0; i < BanksPerHyperBank; i++) begin : gen_hyperbank_rsp_mux
+  // Instantiate one demux per bank in the hyperbank
+  for (genvar i = 0; i < BanksPerHyperBank; i++) begin : gen_bank_connection
+    if (NumHyperBanks > 1) begin : gen_hyperbank_demux
 
-    logic select, sel_q, sel_d;
+      logic select, sel_q, sel_d;
 
-    `FF(sel_q, sel_d, '0, clk_i, rst_ni)
+      `FF(sel_q, sel_d, '0, clk_i, rst_ni)
 
-    // Demux select signal is determined by the MSB of the request address
-    assign select = ic_mem_req[i].q.addr[VirtualMemAddrWidth-1];
-    assign sel_d = ic_mem_req[i].q_valid && ic_mem_rsp[i].q_ready ? select : sel_q;
+      // Demux select signal is determined by the MSB of the request address
+      assign select = ic_mem_req[i].q.addr[VirtualMemAddrWidth-1];
+      assign sel_d = ic_mem_req[i].q_valid && ic_mem_rsp[i].q_ready ? select : sel_q;
 
-    // Request demux
-    assign mem_req_o[i].q_valid = !select && ic_mem_req[i].q_valid;
-    assign mem_req_o[i].q.addr  = ic_mem_req[i].q.addr[MemAddrWidth-1:0];
-    assign mem_req_o[i].q.write = ic_mem_req[i].q.write;
-    assign mem_req_o[i].q.data  = ic_mem_req[i].q.data;
-    assign mem_req_o[i].q.strb  = ic_mem_req[i].q.strb;
-    assign mem_req_o[i].q.user  = ic_mem_req[i].q.user;
-    assign mem_req_o[i].q.amo   = ic_mem_req[i].q.amo;
-    assign mem_req_o[i+BanksPerHyperBank].q_valid = select && ic_mem_req[i].q_valid;
-    assign mem_req_o[i+BanksPerHyperBank].q.addr  = ic_mem_req[i].q.addr[MemAddrWidth-1:0];
-    assign mem_req_o[i+BanksPerHyperBank].q.write = ic_mem_req[i].q.write;
-    assign mem_req_o[i+BanksPerHyperBank].q.data  = ic_mem_req[i].q.data;
-    assign mem_req_o[i+BanksPerHyperBank].q.strb  = ic_mem_req[i].q.strb;
-    assign mem_req_o[i+BanksPerHyperBank].q.user  = ic_mem_req[i].q.user;
-    assign mem_req_o[i+BanksPerHyperBank].q.amo   = ic_mem_req[i].q.amo;
+      // Request demux
+      assign mem_req_o[i].q_valid = !select && ic_mem_req[i].q_valid;
+      assign mem_req_o[i].q.addr  = ic_mem_req[i].q.addr[MemAddrWidth-1:0];
+      assign mem_req_o[i].q.write = ic_mem_req[i].q.write;
+      assign mem_req_o[i].q.data  = ic_mem_req[i].q.data;
+      assign mem_req_o[i].q.strb  = ic_mem_req[i].q.strb;
+      assign mem_req_o[i].q.user  = ic_mem_req[i].q.user;
+      assign mem_req_o[i].q.amo   = ic_mem_req[i].q.amo;
+      assign mem_req_o[i+BanksPerHyperBank].q_valid = select && ic_mem_req[i].q_valid;
+      assign mem_req_o[i+BanksPerHyperBank].q.addr  = ic_mem_req[i].q.addr[MemAddrWidth-1:0];
+      assign mem_req_o[i+BanksPerHyperBank].q.write = ic_mem_req[i].q.write;
+      assign mem_req_o[i+BanksPerHyperBank].q.data  = ic_mem_req[i].q.data;
+      assign mem_req_o[i+BanksPerHyperBank].q.strb  = ic_mem_req[i].q.strb;
+      assign mem_req_o[i+BanksPerHyperBank].q.user  = ic_mem_req[i].q.user;
+      assign mem_req_o[i+BanksPerHyperBank].q.amo   = ic_mem_req[i].q.amo;
 
-    // Response mux (currently assumes response arrives exactly one cycle after request)
-    assign ic_mem_rsp[i].q_ready = select ? mem_rsp_i[i+BanksPerHyperBank].q_ready : mem_rsp_i[i].q_ready;
-    assign ic_mem_rsp[i].p = sel_q ? mem_rsp_i[i+BanksPerHyperBank].p : mem_rsp_i[i].p;
+      // Response mux (currently assumes response arrives exactly one cycle after request)
+      assign ic_mem_rsp[i].q_ready = select ? mem_rsp_i[i+BanksPerHyperBank].q_ready : mem_rsp_i[i].q_ready;
+      assign ic_mem_rsp[i].p = sel_q ? mem_rsp_i[i+BanksPerHyperBank].p : mem_rsp_i[i].p;
+
+    end else begin : gen_no_demux
+
+      // Demux and mux degenerate to direct one-to-one connections
+      assign mem_req_o[i].q_valid  = ic_mem_req[i].q_valid;
+      assign mem_req_o[i].q.addr   = ic_mem_req[i].q.addr[MemAddrWidth-1:0];
+      assign mem_req_o[i].q.write  = ic_mem_req[i].q.write;
+      assign mem_req_o[i].q.data   = ic_mem_req[i].q.data;
+      assign mem_req_o[i].q.strb   = ic_mem_req[i].q.strb;
+      assign mem_req_o[i].q.user   = ic_mem_req[i].q.user;
+      assign mem_req_o[i].q.amo    = ic_mem_req[i].q.amo;
+      assign ic_mem_rsp[i].q_ready = mem_rsp_i[i].q_ready;
+      assign ic_mem_rsp[i].p       = mem_rsp_i[i].p;
+
+    end
   end
 
   // We can ignore the existence of two hyperbanks, and use the regular TCDM interconnect to route requests
@@ -135,5 +152,8 @@ module snitch_tcdm_ic_wrapped #(
     .mem_req_o (ic_mem_req),
     .mem_rsp_i (ic_mem_rsp)
   );
+
+  // Only one or two hyperbanks are currently supported
+  `ASSERT_INIT(CheckNumHyperbanks, (NumHyperBanks == 1 || NumHyperBanks == 2));
 
 endmodule
