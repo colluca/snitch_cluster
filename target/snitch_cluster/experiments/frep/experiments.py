@@ -13,7 +13,7 @@ from mako.template import Template
 from pathlib import Path
 
 DATA_DIR = Path('data').absolute()
-
+VERIFY_PY = Path('../../../../sw/blas/gemm/scripts/verify.py').absolute()
 
 class FrepExperimentManager(ExperimentManager):
 
@@ -84,6 +84,7 @@ def main():
         experiment['app'] = 'gemm'
         experiment['m_tiles'] = 2
         experiment['n_tiles'] = 1
+        experiment['cmd'] = [str(VERIFY_PY), "${sim_bin}", "${elf}"]
 
     manager = FrepExperimentManager(experiments)
     manager.run()
