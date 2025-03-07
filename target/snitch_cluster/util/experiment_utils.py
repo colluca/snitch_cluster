@@ -205,10 +205,13 @@ class ExperimentManager:
     def export_power_experiments(self, start_region, end_region=None, path='power.yaml'):
         # Extract VCD intervals
         df = self.get_results()
-        vcd_interval = df.apply(
-            lambda row: row['results'].get_interval(start_region, end_region),
-            axis=1
-        )
+        if self.perf_results_available:
+            vcd_interval = df.apply(
+                lambda row: row['results'].get_interval(start_region, end_region),
+                axis=1
+            )
+        else:
+            raise ValueError('Cannot export VCD intervals without performance results.')
 
         # Extend experiments with VCD intervals
         for i, experiment in enumerate(self.yaml['experiments']):
@@ -223,25 +226,38 @@ class ExperimentManager:
     def get_results(self, source=None):
         """Returns a DataFrame of SimResults objects."""
 
+        # Initialize flags
+        self.perf_results_available = False
+        self.power_results_available = False
+
         # Create the DataFrame
         df = pd.DataFrame(self.experiments)
 
         # Create SimResults objects from 'run_dir' column
-        results = df['run_dir'].apply(lambda run_dir: SimResults(run_dir, source=source))
-        results.rename('results', inplace=True)
+        try:
+            results = df['run_dir'].apply(lambda run_dir: SimResults(run_dir, source=source))
+            results.rename('results', inplace=True)
+            self.perf_results_available = True
+        except FileNotFoundError:
+            print(f'Performance results not available.')
 
         # Create PowerResults objects
         if 'PowerResults' in globals():
-            power_results = df['power_dir'].apply(lambda power_dir: PowerResults(power_dir))
-            power_results.rename('power_results', inplace=True)
-        else:
-            power_results = pd.Series([None] * len(df), name='power_results')
+            try:
+                power_results = df['power_dir'].apply(lambda power_dir: PowerResults(power_dir))
+                power_results.rename('power_results', inplace=True)
+                self.power_results_available = True
+            except FileNotFoundError:
+                print(f'Power results not available.')
 
         # Expand the 'axes' column into separate columns
         axes = df['axes'].apply(pd.Series)
 
         # Combine experiment axes and results into a new DataFrame
-        df = pd.concat([axes, results, power_results], axis=1)
+        columns = [axes]
+        if self.perf_results_available: columns.append(results)
+        if self.power_results_available: columns.append(power_results)
+        df = pd.concat(columns, axis=1)
 
         # If desired, reset the index
         df = df.reset_index(drop=True)
