@@ -15,6 +15,7 @@ from pathlib import Path
 DATA_DIR = Path('data').absolute()
 VERIFY_PY = Path('../../../../sw/blas/gemm/scripts/verify.py').absolute()
 
+
 class FrepExperimentManager(ExperimentManager):
 
     def derive_axes(self, experiment):
@@ -77,6 +78,13 @@ def gen_experiment(experiments):
     return experiments
 
 
+def get_average_fpu_util(row):
+    util = []
+    for i in range(0, 8):
+        util.append(row['results'].get_metric(SimRegion(f'hart_{i}', 'tile_1'), 'fpss_fpu_occupancy'))
+    return sum(util) / len(util)
+
+
 def main():
 
     seed = 31
@@ -100,7 +108,7 @@ def main():
 
     df = manager.get_results()
     if manager.perf_results_available:
-        df['fpu_util'] = df.apply(lambda row: row['results'].get_metric(SimRegion('hart_0', 'tile_1'), 'fpss_fpu_occupancy'), axis=1)
+        df['fpu_util'] = df.apply(get_average_fpu_util, axis=1)
     df['size (KiB)'] = df.apply(lambda row: calculate_total_size(row['m'], row['n'], row['k']) / 1024, axis=1)
     print(df)
 
