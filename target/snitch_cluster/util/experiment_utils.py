@@ -103,14 +103,18 @@ class ExperimentManager:
     def derive_data_cfg(self, experiment):
         return None
 
+    def derive_hw_cfg(self, experiment):
+        return None
+
     def run(self):
         # Build software
         if 'sw' in self.actions or 'all' in self.actions:
             for experiment in self.experiments:
                 defines = self.derive_cdefines(experiment)
                 data_cfg = self.derive_data_cfg(experiment)
+                hw_cfg = self.derive_hw_cfg(experiment)
                 build.build(experiment['app'], experiment['elf'].parent, defines=defines,
-                            data_cfg=data_cfg)
+                            data_cfg=data_cfg, hw_cfg=hw_cfg)
 
         # Run experiments
         if 'run' in self.actions or 'all' in self.actions:

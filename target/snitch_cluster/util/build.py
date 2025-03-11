@@ -60,7 +60,7 @@ def parser():
 
 
 # Build software target with a specific data configuration
-def build(target, build_dir, data_cfg=None, defines=None):
+def build(target, build_dir, data_cfg=None, defines=None, hw_cfg=None):
     # Define variables for build system
     vars = {
         'DEBUG': 'ON',
@@ -71,6 +71,8 @@ def build(target, build_dir, data_cfg=None, defines=None):
     if defines:
         cflags = ' '.join([f'-D{name}={value}' for name, value in defines.items()])
         vars[f'{target}_RISCV_CFLAGS'] = cflags
+    if hw_cfg is not None:
+        vars['CFG_OVERRIDE'] = hw_cfg
 
     # Build software
     print(colored('Build app', 'black', attrs=['bold']), colored(target, 'cyan', attrs=['bold']),
