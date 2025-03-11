@@ -197,6 +197,10 @@ int gemm(gemm_args_t* args) {
         local_a[1] = local_a[0] + SNRT_TCDM_HYPERBANK_SIZE;
         local_b[1] = local_b[0] + SNRT_TCDM_HYPERBANK_SIZE;
         local_c[1] = local_c[0] + SNRT_TCDM_HYPERBANK_SIZE;
+    } else if (SNRT_TCDM_BANK_NUM == 64) {
+        local_a[1] = local_c[0] + BANK_WIDTH * banks_per_buffer;
+        local_b[1] = local_a[1] + BANK_WIDTH * banks_per_buffer;
+        local_c[1] = local_b[1] + BANK_WIDTH * banks_per_buffer;
     } else {
         local_a[1] = local_a[0] + SNRT_TCDM_SIZE / 2;
         local_b[1] = local_b[0] + SNRT_TCDM_SIZE / 2;

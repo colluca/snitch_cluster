@@ -7,7 +7,9 @@
 //         Luca Colagrande <colluca@iis.ee.ethz.ch>
 //         Viviane Potocnik <vivianep@iis.ee.ethz.ch>
 
-#define USE_NESTED_FREP 0
+#ifndef USE_NESTED_FREP
+#define USE_NESTED_FREP 1
+#endif
 
 void gemm_fp64_naive(uint32_t M, uint32_t N, uint32_t K, void* A_p,
                      uint32_t ldA, uint32_t ta, void* B_p, uint32_t ldB,
