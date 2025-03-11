@@ -1115,7 +1115,7 @@ def main():
                         perf_metrics[0]['start'] = time_info[1]
                     if not empty:
                         print(ann_insn, file=file)
-                except Exception:
+                except Exception as e:
                     message = 'Exception occured while processing '
                     if not nextl:
                         message += 'last line. Did the simulation terminate?'
@@ -1123,6 +1123,7 @@ def main():
                         message += f'line {lineno}.'
                     print(traceback.format_exc(), file=sys.stderr)
                     print(message, file=sys.stderr)
+                    raise e
             else:
                 break  # Nothing more in pipe, EOF
         perf_metrics[-1]['tend'] = time_info[0] // 1000

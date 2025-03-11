@@ -16,6 +16,7 @@ class Sequencer(object):
 
         # Loop nest configuration
         self.loop_cfg = []
+        self.nest_depth = 0
 
         # Instructions issued to the sequencer, including FREPs,
         # instructions which bypass the ring buffer, and instructions
@@ -47,6 +48,7 @@ class Sequencer(object):
             })
 
     def decode_frep(self, frep):
+
         # Fill loop configuration
         self.loop_cfg[-1].update(frep)
         pc = self.loop_cfg[-1]['pc']
@@ -85,6 +87,7 @@ class Sequencer(object):
         while self.insns:
             if self.insns[self.rd_ptr]['is_frep']:
                 self.loop_idx += 1
+                self.nest_depth += 1
                 self.insns.pop(self.rd_ptr)
                 self.loop_cfg[self.loop_idx]['base_ptr'] = self.rd_ptr
             else:
@@ -154,7 +157,8 @@ class Sequencer(object):
                     if self.loop_idx == -1:
                         tot_inst_num = self.loop_cfg[0]['max_inst'] + 1
                         del self.insns[:tot_inst_num]
-                        self.loop_cfg.clear()
+                        del self.loop_cfg[:self.nest_depth]
+                        self.nest_depth = 0
                         self.rd_ptr = 0
                     else:
                         # If the outer loop to which we moved is not at the last instruction
