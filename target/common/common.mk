@@ -60,7 +60,7 @@ COMMON_BENDER_FLAGS += -t postlayout
 endif
 
 VSIM_BENDER   += $(COMMON_BENDER_FLAGS) -t test -t simulation -t vsim
-VSIM_BUILDDIR ?= work-vsim
+VSIM_BUILDDIR ?= $(MKFILE_DIR)/work-vsim
 VSIM_FLAGS    += -t 1ps
 VOPT_FLAGS     = 
 ifeq ($(DEBUG), ON)

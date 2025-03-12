@@ -25,7 +25,7 @@ except ImportError as e:
     print(f'{e}. Power results will not be available.')
 
 
-ACTIONS = ['sw', 'run', 'traces', 'annotate', 'perf', 'visual-trace', 'power', 'all', 'none']
+ACTIONS = ['sw', 'hw', 'run', 'traces', 'annotate', 'perf', 'visual-trace', 'power', 'all', 'none']
 SNITCH_ROOT = Path(__file__).parent.parent.parent.parent
 
 
@@ -106,7 +106,29 @@ class ExperimentManager:
     def derive_hw_cfg(self, experiment):
         return None
 
+    def derive_hw_bin(self, experiment):
+        return self.dir / 'hw' / experiment['hw'] / 'bin/snitch_cluster.vsim'
+
+    def derive_vsim_builddir(self, experiment):
+        return self.dir / 'hw' / experiment['hw'] / 'work-vsim'
+
     def run(self):
+
+        # Build hardware
+        if 'hw' in self.actions or 'all' in self.actions:
+            for experiment in self.experiments:
+                bin = self.derive_hw_bin(experiment)
+                print(colored('Generate hardware', 'black', attrs=['bold']),
+                      colored(bin, 'cyan', attrs=['bold']))
+                vars = {
+                    'BIN_DIR': bin.parent,
+                    'VSIM_BUILDDIR': self.derive_vsim_builddir(experiment),
+                    'CFG_OVERRIDE': self.derive_hw_cfg(experiment),
+                    'DEBUG': 'ON'
+                }
+                flags = ['-j']
+                common.make(bin, vars, flags=flags, dry_run=self.args.dry_run)
+
         # Build software
         if 'sw' in self.actions or 'all' in self.actions:
             for experiment in self.experiments:

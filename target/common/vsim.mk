@@ -33,14 +33,14 @@ $(BIN_DIR)/$(TARGET).vsim: $(VSIM_BUILDDIR)/compile.vsim.tcl $(TB_CC_SOURCES) $(
 	@echo "#!/bin/bash" > $@
 	@echo 'binary=$$(realpath $$1)' >> $@
 	@echo 'echo $$binary > .rtlbinary' >> $@
-	@echo '$(VSIM) +permissive $(VSIM_FLAGS) $$3 -work $(MKFILE_DIR)/$(VSIM_BUILDDIR) -c \
+	@echo '$(VSIM) +permissive $(VSIM_FLAGS) $$3 -work $(VSIM_BUILDDIR) -c \
 				-ldflags "-Wl,-rpath,$(FESVR)/lib -L$(FESVR)/lib -lfesvr -lutil" \
 				$(VSIM_TOP_MODULE)_opt +permissive-off ++$$binary ++$$2' >> $@
 	@chmod +x $@
 	@echo "#!/bin/bash" > $@.gui
 	@echo 'binary=$$(realpath $$1)' >> $@.gui
 	@echo 'echo $$binary > .rtlbinary' >> $@.gui
-	@echo '$(VSIM) +permissive $(VSIM_FLAGS) -work $(MKFILE_DIR)/$(VSIM_BUILDDIR) \
+	@echo '$(VSIM) +permissive $(VSIM_FLAGS) -work $(VSIM_BUILDDIR) \
 				-ldflags "-Wl,-rpath,$(FESVR)/lib -L$(FESVR)/lib -lfesvr -lutil" \
 				$(VSIM_TOP_MODULE)_opt +permissive-off ++$$binary ++$$2' >> $@.gui
 	@chmod +x $@.gui
