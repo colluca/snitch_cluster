@@ -58,7 +58,7 @@ class FrepExperimentManager(ExperimentManager):
         return cfg_path
 
     def derive_hw_cfg(self, experiment):
-        return 'cfg/' + experiment['hw'] + '.hjson'
+        return Path.cwd() / 'cfg' / f'{experiment["hw"]}.hjson'
 
     def derive_cdefines(self, experiment):
         if experiment['hw'] == 'base32fc':
