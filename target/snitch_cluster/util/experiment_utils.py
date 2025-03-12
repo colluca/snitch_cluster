@@ -203,7 +203,7 @@ class ExperimentManager:
                     'POWER_REPDIR': experiment['power_dir']
                 }
                 dir = SNITCH_ROOT / 'nonfree'
-                process = common.make('power', vars, dir=dir, sync=False)
+                process = common.make('power', vars, dir=dir, sync=True)
                 processes.append(process)
 
             # Wait for all processes to complete

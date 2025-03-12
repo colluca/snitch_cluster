@@ -1,7 +1,7 @@
 Run RTL experiments:
 ```
 make clean-vsim
-make bin/snitch_cluster.vsim
+make bin/snitch_cluster.vsim DEBUG=ON -j
 ./experiments.py --actions sw run visual-trace -j
 ```
 
@@ -11,14 +11,14 @@ To test the PLS results
 ```
 make clean-vsim
 make PL_SIM=1 DEBUG=ON bin/snitch_cluster.vsim
-./experiments.py --actions run -j --run-dir pls_check
+./experiments.py --actions run -j --run-dir pls_test
 ```
 
 To run the power simulation
 ```
 make clean-vsim
 make PL_SIM=1 DEBUG=ON VCD_DUMP=1 bin/snitch_cluster.vsim
-./experiments.py power.yaml --actions run power -j --run-dir pls
+./experiments.py power.yaml --actions run power -j --run-dir pls_power
 ```
 
 To build all hardware configurations:
