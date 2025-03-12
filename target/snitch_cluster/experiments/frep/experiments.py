@@ -15,15 +15,17 @@ from pathlib import Path
 
 NUM_GEMM_SIZES = 50
 HW_CFGS = [
+    'base32fc',
     'zonl32fc',
     'zonl64fc',
     'zonl64dobu',
-    # 'zonl48dobu',
+    'zonl48dobu',
 ]
 NUM_TILES = 3
 ROI = 'tile_1'
 
 VSIM_BINS = {
+    'base32fc':   str(Path.cwd() / 'hw/base32fc/bin/snitch_cluster.vsim'),
     'zonl32fc':   str(Path.cwd() / 'hw/zonl32fc/bin/snitch_cluster.vsim'),
     'zonl64fc':   str(Path.cwd() / 'hw/zonl64fc/bin/snitch_cluster.vsim'),
     'zonl64dobu': str(Path.cwd() / 'hw/zonl64dobu/bin/snitch_cluster.vsim'),
@@ -57,6 +59,12 @@ class FrepExperimentManager(ExperimentManager):
 
     def derive_hw_cfg(self, experiment):
         return 'cfg/' + experiment['hw'] + '.hjson'
+
+    def derive_cdefines(self, experiment):
+        if experiment['hw'] == 'base32fc':
+            return {'USE_NESTED_FREP': 0}
+        else:
+            return {}
 
 
 def generate_mat_size():
