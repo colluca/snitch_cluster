@@ -69,6 +69,7 @@ module ${cfg['name']}_wrapper (
   localparam int unsigned NumDTLBEntries [${cfg['nr_cores']}] = '{${core_cfg('num_dtlb_entries')}};
   localparam int unsigned NumITLBEntries [${cfg['nr_cores']}] = '{${core_cfg('num_itlb_entries')}};
   localparam int unsigned NumSequencerInstr [${cfg['nr_cores']}] = '{${core_cfg('num_sequencer_instructions')}};
+  localparam int unsigned NumSequencerLoops [${cfg['nr_cores']}] = '{${core_cfg('num_sequencer_loops')}};
   localparam int unsigned NumSsrs [${cfg['nr_cores']}] = '{${core_cfg('num_ssrs')}};
   localparam int unsigned SsrMuxRespDepth [${cfg['nr_cores']}] = '{${core_cfg('ssr_mux_resp_depth')}};
 
@@ -131,6 +132,7 @@ module ${cfg['name']}_wrapper (
     .SsrRegs (${cfg['pkg_name']}::SsrRegs),
     .SsrCfgs (${cfg['pkg_name']}::SsrCfgs),
     .NumSequencerInstr (NumSequencerInstr),
+    .NumSequencerLoops (NumSequencerLoops),
     .Hive (${cfg['pkg_name']}::Hive),
     .Topology (snitch_pkg::${cfg['tcdm']['topology']}),
     .Radix (${int(cfg['tcdm']['radix'])}),

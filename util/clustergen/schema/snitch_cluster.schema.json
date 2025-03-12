@@ -498,6 +498,11 @@
                                     "description": "Number of outstanding memory operations. Determines the buffer size in the core's load/store unit.",
                                     "default": 1
                                 },
+                                "num_sequencer_loops": {
+                                    "type": "number",
+                                    "description": "Maximum number of nested loops supported by the sequencer.",
+                                    "default": 1
+                                },
                                 "num_sequencer_instructions": {
                                     "type": "number",
                                     "description": "Amount of floating-point instruction the floating-point sequence buffer can hold.",

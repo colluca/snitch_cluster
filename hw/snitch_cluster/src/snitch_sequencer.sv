@@ -10,6 +10,7 @@ module snitch_sequencer import snitch_pkg::*; #(
     parameter int unsigned AddrWidth = 0,
     parameter int unsigned DataWidth = 0,
     parameter int unsigned Depth = 32,
+    parameter int unsigned FrepDim = 1,
     parameter acc_addr_e DstAddr = FP_SS,
     /// Derived parameter *Do not override*
     localparam type addr_t = logic [AddrWidth-1:0],
@@ -52,12 +53,11 @@ module snitch_sequencer import snitch_pkg::*; #(
   /////////////////
 
   localparam int RptBits = 16;
-  localparam int FrepDim = 4;
 
   localparam int unsigned DepthBits = $clog2(Depth);
   // TODO: check which types can be loosened to use LoopIdxBits
   localparam int unsigned LoopCntBits = $clog2(FrepDim + 1);
-  localparam int unsigned LoopIdxBits = $clog2(FrepDim);
+  localparam int unsigned LoopIdxBits = cf_math_pkg::idx_width(FrepDim);
 
   // Loop configuration
   typedef struct packed {
