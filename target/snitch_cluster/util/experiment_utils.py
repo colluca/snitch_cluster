@@ -178,11 +178,17 @@ class ExperimentManager:
                         print(mako.exceptions.text_error_template().render())
                     spec_data = json5.loads(spec_data)
                     rendered_spec = experiment['run_dir'] / 'roi_spec.json'
-                    with open(rendered_spec, 'w') as f:
-                        json5.dump(spec_data, f, indent=4)
+                    # Only write to the file if it does not exist.
+                    # Ensures that rerunning visual-trace doesn't rerun the
+                    # make targets if the simulations were not rerun.
+                    if not rendered_spec.exists():
+                        with open(rendered_spec, 'w') as f:
+                            json5.dump(spec_data, f, indent=4)
 
                     # Build visual trace
-                    build.build_visual_trace(experiment['run_dir'], rendered_spec)
+                    hw_cfg = self.derive_hw_cfg(experiment)
+                    build.build_visual_trace(experiment['run_dir'], rendered_spec,
+                                             hw_cfg=hw_cfg)
 
         # Generate joint performance dump
         if 'power' in self.actions or 'all' in self.actions:
