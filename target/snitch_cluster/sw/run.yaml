@@ -75,6 +75,7 @@ runs:
   - elf: ./tests/build/frep4d_3.elf
   - elf: ./tests/build/frep4d_4.elf
   - elf: ./tests/build/gemm_frep.elf
+  - elf: ./tests/build/gemm_frep1d.elf
   - elf: ./tests/build/interrupt_local.elf
   - elf: ./tests/build/multi_cluster.elf
   - elf: ./tests/build/openmp_parallel.elf

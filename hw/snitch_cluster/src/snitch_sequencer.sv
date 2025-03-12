@@ -91,6 +91,8 @@ module snitch_sequencer import snitch_pkg::*; #(
   // Nest controller to ring buffer
   logic [DepthBits-1:0] rb_wptr;
   logic [DepthBits-1:0] rb_raddr;
+  logic rb_rvalid;
+  logic rb_rready;
   logic rb_advance;
   // TODO comment width
   logic [$clog2(Depth+1)-1:0] rb_step;
@@ -319,6 +321,8 @@ module snitch_sequencer import snitch_pkg::*; #(
     .wvalid_i(core_rb_valid),
     .wready_o(core_rb_ready),
     .wdata_i(rb_wdata),
+    .rvalid_i(rb_rvalid),
+    .rready_o(rb_rready),
     .raddr_i(rb_raddr),
     .rdata_o(rb_rdata),
     .advance_i(rb_advance),
@@ -545,6 +549,7 @@ module snitch_sequencer import snitch_pkg::*; #(
   // Loop nest output logic //
   ////////////////////////////
 
+  assign rb_rvalid = 1'b1;
   assign rb_raddr = rd_pointer_q;
   assign rb_advance = frep_active_q ? nest_ends : seq_next;
   assign rb_step = frep_active_q ? frep_cfg_q[0].max_inst + 1 : 1;
@@ -553,13 +558,13 @@ module snitch_sequencer import snitch_pkg::*; #(
 
   // TODO understand
   always_comb begin : proc_streamctl
-    seq_out_valid     = !rb_empty;
+    seq_out_valid     = rb_rready;
     seq_done          = 1'b0;
     streamctl_ready_o = 1'b0;
     if ((frep_cnt_q > 0) && frep_cfg_q[frep_idx_q].is_outer && frep_cfg_q[frep_idx_q].is_streamctl) begin
-      seq_out_valid     = !rb_empty && streamctl_valid_i && !streamctl_done_i;
-      seq_done          = !rb_empty && streamctl_valid_i && streamctl_done_i;
-      streamctl_ready_o = (!rb_empty && seq_out_ready) || seq_done;
+      seq_out_valid     = rb_rready && streamctl_valid_i && !streamctl_done_i;
+      seq_done          = rb_rready && streamctl_valid_i && streamctl_done_i;
+      streamctl_ready_o = (rb_rready && seq_out_ready) || seq_done;
     end
   end
 
@@ -620,7 +625,7 @@ module snitch_sequencer import snitch_pkg::*; #(
     .inp_data_i({core_direct_data, seq_out_data}),
     .inp_valid_i({core_direct_valid, seq_out_valid}),
     .inp_ready_o({core_direct_ready, seq_out_ready}),
-    .inp_sel_i(rb_empty),
+    .inp_sel_i(!rb_rready),
     .oup_data_o(oup_data),
     .oup_valid_o(oup_qvalid_o),
     .oup_ready_i(oup_qready_i)

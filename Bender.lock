@@ -42,7 +42,7 @@ packages:
     - scm
     - tech_cells_generic
   common_cells:
-    revision: e4a1e86182be55ea0975026cd025f2b8c8283b99
+    revision: da4416b30404bbed46e64bc6761739bb1d5ac56e
     version: null
     source:
       Git: https://github.com/colluca/common_cells.git
