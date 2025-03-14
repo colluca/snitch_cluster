@@ -173,11 +173,13 @@ def main():
     # between tiles as a delimiter
     # manager.export_power_experiments(SimRegion('hart_0', ROI))
 
-    df,df_area = manager.get_results()
+    df = manager.get_results()
+    df['size (KiB)'] = df.apply(lambda row: calculate_total_size(row['m'], row['n'], row['k']) / 1024, axis=1)
+
     if manager.perf_results_available:
         df['fpu_util'] = df.apply(get_average_fpu_util, axis=1)
-    df['size (KiB)'] = df.apply(lambda row: calculate_total_size(row['m'], row['n'], row['k']) / 1024, axis=1)
     # print(df)
+
     if manager.power_results_available:
         df['total_power'] = df.apply(get_total_power, axis=1)
         # print(df['total_power'])
@@ -192,18 +194,20 @@ def main():
         #     sum
         # )
 
+    df_area = manager.get_area_results()
     if manager.area_results_available:
         for key in ['TotArea', 'CombArea', 'SeqArea', 'MacroArea', 'BufInvArea']:
             df_area[key] = df_area.apply(lambda row: get_area(row, key), axis=1)
 
         df_area['area_groups'] = df_area.apply(lambda row: row['area_results'].group_area_breakdown(AREA_GROUPS.values()), axis=1)
-        for key,val in AREA_GROUPS.items():
+        for key, val in AREA_GROUPS.items():
             print(key)
             df_area[key] = df_area.apply(lambda row: get_hier_area(row, val), axis=1)
 
         df_area['area_groups'] = None
         print(df_area)
         df_area.to_csv('area.csv', index=False)
+
     # Export results to file
     df.to_csv('results.csv', index=False)
 

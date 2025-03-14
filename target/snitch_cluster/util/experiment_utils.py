@@ -298,7 +298,7 @@ class ExperimentManager:
             results.rename('results', inplace=True)
             self.perf_results_available = True
         except FileNotFoundError:
-            print(f'Performance results not available.')
+            print('Performance results not available.')
 
         # Create PowerResults objects
         if 'PowerResults' in globals():
@@ -307,29 +307,47 @@ class ExperimentManager:
                 power_results.rename('power_results', inplace=True)
                 self.power_results_available = True
             except FileNotFoundError:
-                print(f'Power results not available.')
+                print('Power results not available.')
 
-        # Create AreaResults objects
+        # Combine experiment axes and results into a new DataFrame
+        columns = [axes]
+        if self.perf_results_available:
+            columns.append(results)
+        if self.power_results_available:
+            columns.append(power_results)
+        df = pd.concat(columns, axis=1)
+
+        # If desired, reset the index
+        df = df.reset_index(drop=True)
+
+        return df
+
+    def get_area_results(self):
+        """Returns a DataFrame of AreaResults objects."""
+
+        # Initialize flags
+        self.area_results_available = False
+
+        # Create the DataFrame
+        df = pd.DataFrame(self.experiments)
+
+        # Expand the 'axes' column into separate columns
+        axes = df['axes'].apply(pd.Series)
         hw_cfg = pd.Series(axes['hw'].unique())
 
+        # Create AreaResults objects
         if 'AreaResults' in globals():
             try:
                 area_results = hw_cfg.apply(lambda cfg: AreaResults(f'./area/{cfg}'))
                 area_results.rename('area_results', inplace=True)
                 self.area_results_available = True
             except FileNotFoundError:
-                print(f'Area results not available.')
+                print('Area results not available.')
 
-        # Combine experiment axes and results into a new DataFrame
-        columns = [axes]
-        if self.perf_results_available: columns.append(results)
-        if self.power_results_available: columns.append(power_results)
+        # Combine cfg axis and results into a new DataFrame
+        columns = [hw_cfg]
+        if self.area_results_available:
+            columns.append(area_results)
         df = pd.concat(columns, axis=1)
 
-        # Create DF for area results.
-        df_area = pd.concat([hw_cfg, area_results], axis=1)
-
-        # If desired, reset the index
-        df = df.reset_index(drop=True)
-
-        return df, df_area
+        return df
