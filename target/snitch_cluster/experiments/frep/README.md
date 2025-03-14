@@ -17,7 +17,7 @@ make PL_SIM=1 DEBUG=ON bin/snitch_cluster.vsim
 To run the power simulation:
 ```
 make clean-vsim
-make PL_SIM=1 DEBUG=ON VCD_DUMP=1 bin/snitch_cluster.vsim
+BIN_DIR=$PWD/experiments/frep/hw/base32fc/bin/ make PL_SIM=1 DEBUG=ON VCD_DUMP=1 VSIM_BUILDDIR=$PWD/experiments/frep/hw/base32fc/work-vsim/ $BIN_DIR/snitch_cluster.vsim -j
 ./experiments.py power.yaml --actions run power -j --run-dir pls_power
 ```
 
