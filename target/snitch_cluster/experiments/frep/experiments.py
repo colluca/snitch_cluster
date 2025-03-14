@@ -24,6 +24,17 @@ HW_CFGS = [
 NUM_TILES = 3
 ROI = 'tile_1'
 
+POWER_GROUPS = [
+    '*i_snitch_shared_muldiv',
+    # '*i_snitch_cc',
+    '*i_snitch_fp_ss*',
+    '*i_idma_inst64*',
+    '*i_snitch_icache*',
+    '*i_data_mem*',
+    '*i_axi_dma_xbar',
+    '*i_axi_zeromem',
+]
+
 VSIM_BINS = {
     'base32fc':   str(Path.cwd() / 'hw/base32fc/bin/snitch_cluster.vsim'),
     'zonl32fc':   str(Path.cwd() / 'hw/zonl32fc/bin/snitch_cluster.vsim'),
@@ -114,6 +125,10 @@ def get_average_fpu_util(row):
     return sum(util) / len(util)
 
 
+def get_total_power(row):
+    return row['power_results'].total_power
+
+
 def main():
 
     seed = 31
@@ -143,7 +158,20 @@ def main():
     if manager.perf_results_available:
         df['fpu_util'] = df.apply(get_average_fpu_util, axis=1)
     df['size (KiB)'] = df.apply(lambda row: calculate_total_size(row['m'], row['n'], row['k']) / 1024, axis=1)
-    print(df)
+    # print(df)
+    if manager.power_results_available:
+        df['total_power'] = df.apply(get_total_power, axis=1)
+        print(df['total_power'])
+        df.to_csv('power.csv', index=False)
+        # breakdown = df.iloc[0]['power_results'].group_power_breakdown(POWER_GROUPS)
+        # print(breakdown)
+        # print(df.iloc[0]['power_results'].total_power)
+        # sum = breakdown['total_power'].sum() + df.iloc[0]['power_results'].clock_power
+        # print(
+        #     breakdown['total_power'].sum(), '+',
+        #     df.iloc[0]['power_results'].clock_power, '=',
+        #     sum
+        # )
 
     # Export results to file
     df.to_csv('results.csv', index=False)
