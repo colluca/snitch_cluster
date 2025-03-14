@@ -25,6 +25,12 @@ try:
 except ImportError as e:
     print(f'{e}. Power results will not be available.')
 
+# Try importing AreaResults module (not available in open-source repo)
+try:
+    from snitch.nonfree.AreaResults import AreaResults
+except ImportError as e:
+    print(f'{e}. Area results will not be available.')
+
 
 ACTIONS = ['sw', 'hw', 'run', 'traces', 'annotate', 'perf', 'visual-trace', 'power', 'all', 'none']
 SNITCH_ROOT = Path(__file__).parent.parent.parent.parent
@@ -47,6 +53,7 @@ class ExperimentManager:
         self.dir = Path.cwd()
         self.run_dir = self.dir / self.args.run_dir
         self.power_dir = self.dir / 'power'
+        self.area_dir = self.dir / 'area'
 
         # Get experiments
         if self.args.testlist is not None:
@@ -97,6 +104,7 @@ class ExperimentManager:
         experiment['elf'] = self.derive_elf(experiment)
         experiment['run_dir'] = self.derive_dir(self.run_dir, experiment)
         experiment['power_dir'] = self.derive_dir(self.power_dir, experiment)
+        experiment['area_dir'] = self.derive_dir(self.area_dir, experiment)
 
     def derive_cdefines(self, experiment):
         return {}
@@ -276,9 +284,13 @@ class ExperimentManager:
         # Initialize flags
         self.perf_results_available = False
         self.power_results_available = False
+        self.area_results_available = False
 
         # Create the DataFrame
         df = pd.DataFrame(self.experiments)
+
+        # Expand the 'axes' column into separate columns
+        axes = df['axes'].apply(pd.Series)
 
         # Create SimResults objects from 'run_dir' column
         try:
@@ -297,8 +309,16 @@ class ExperimentManager:
             except FileNotFoundError:
                 print(f'Power results not available.')
 
-        # Expand the 'axes' column into separate columns
-        axes = df['axes'].apply(pd.Series)
+        # Create AreaResults objects
+        hw_cfg = pd.Series(axes['hw'].unique())
+
+        if 'AreaResults' in globals():
+            try:
+                area_results = hw_cfg.apply(lambda cfg: AreaResults(f'./area/{cfg}'))
+                area_results.rename('area_results', inplace=True)
+                self.area_results_available = True
+            except FileNotFoundError:
+                print(f'Area results not available.')
 
         # Combine experiment axes and results into a new DataFrame
         columns = [axes]
@@ -306,7 +326,10 @@ class ExperimentManager:
         if self.power_results_available: columns.append(power_results)
         df = pd.concat(columns, axis=1)
 
+        # Create DF for area results.
+        df_area = pd.concat([hw_cfg, area_results], axis=1)
+
         # If desired, reset the index
         df = df.reset_index(drop=True)
 
-        return df
+        return df, df_area
