@@ -7,6 +7,7 @@
 """Convenience functions to run software experiments in RTL simulation.
 """
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from copy import deepcopy
 import json5
 import mako
@@ -114,9 +115,13 @@ class ExperimentManager:
 
     def run(self):
 
+        dry_run = self.args.dry_run
+        n_procs = self.args.n_procs
+        experiments = self.experiments
+
         # Build hardware
         if 'hw' in self.actions or 'all' in self.actions:
-            for experiment in self.experiments:
+            for experiment in experiments:
                 bin = self.derive_hw_bin(experiment)
                 print(colored('Generate hardware', 'black', attrs=['bold']),
                       colored(bin, 'cyan', attrs=['bold']))
@@ -127,11 +132,11 @@ class ExperimentManager:
                     'DEBUG': 'ON'
                 }
                 flags = ['-j']
-                common.make(bin, vars, flags=flags, dry_run=self.args.dry_run)
+                common.make(bin, vars, flags=flags, dry_run=dry_run)
 
         # Build software
         if 'sw' in self.actions or 'all' in self.actions:
-            for experiment in self.experiments:
+            for experiment in experiments:
                 defines = self.derive_cdefines(experiment)
                 data_cfg = self.derive_data_cfg(experiment)
                 hw_cfg = self.derive_hw_cfg(experiment)
@@ -141,17 +146,17 @@ class ExperimentManager:
         # Run experiments
         if 'run' in self.actions or 'all' in self.actions:
             simulations = sim_utils.get_simulations(
-                self.experiments,
+                experiments,
                 run.SIMULATORS[self.args.simulator],
                 self.run_dir
             )
-            for i, experiment in enumerate(self.experiments):
+            for i, experiment in enumerate(experiments):
                 simulations[i].env = self.derive_env(experiment)
             run.run_simulations(simulations, self.args)
 
         # Generate traces
         if 'traces' in self.actions or 'all' in self.actions:
-            for experiment in self.experiments:
+            for experiment in experiments:
                 print(colored('Generate traces', 'black', attrs=['bold']),
                     colored(experiment['run_dir'], 'cyan', attrs=['bold']))
                 vars = {'SIM_DIR': experiment['run_dir']}
@@ -160,13 +165,13 @@ class ExperimentManager:
 
         # Annotate traces
         if 'annotate' in self.actions or 'all' in self.actions:
-            for experiment in self.experiments:
+            for experiment in experiments:
                 build.annotate_traces(experiment['run_dir'])
 
         # Generate joint performance dump
         if 'perf' in self.actions or 'all' in self.actions:
             processes = []
-            for experiment in self.experiments:
+            for experiment in experiments:
                 print(
                     colored('Generate performance dump', 'black', attrs=['bold']),
                     colored(experiment['run_dir'], 'cyan', attrs=['bold'])
@@ -188,7 +193,7 @@ class ExperimentManager:
             # Check for existence of a ROI specification
             roi = self.dir / 'roi.json.tpl'
             if roi.exists():
-                for experiment in self.experiments:
+                for experiment in experiments:
 
                     # Render ROI specification template
                     with open(roi, 'r') as f:
@@ -214,8 +219,7 @@ class ExperimentManager:
 
         # Generate joint performance dump
         if 'power' in self.actions or 'all' in self.actions:
-            processes = []
-            for experiment in self.experiments:
+            def run_power(experiment):
                 print(
                     colored('Estimate power', 'black', attrs=['bold']),
                     colored(experiment['power_dir'], 'cyan', attrs=['bold'])
@@ -225,14 +229,25 @@ class ExperimentManager:
                     'POWER_REPDIR': experiment['power_dir']
                 }
                 dir = SNITCH_ROOT / 'nonfree'
-                process = common.make('power', vars, dir=dir, sync=True)
+                process = common.make('power', vars, dir=dir, dry_run=dry_run)
                 processes.append(process)
 
-            # Wait for all processes to complete
-            for i, process in enumerate(processes):
-                return_code = process.wait()
-                if return_code != 0:
-                    raise Exception(f'Failed to estimate power for experiment {i}')
+            with ThreadPoolExecutor(max_workers=n_procs) as executor:
+                futures = [executor.submit(run_power, exp) for exp in experiments]
+                for i, future in enumerate(as_completed(futures)):
+                    return_code = future.result()
+                    if return_code != 0:
+                        raise Exception(
+                            colored('Power estimation ', 'red', attrs=['bold']),
+                            colored(f'{experiments[i]}', 'black', attrs=['bold']),
+                            colored(' failed.', 'red', attrs=['bold'])
+                        )
+                    else:
+                        print(
+                            colored('Power estimation ', 'green', attrs=['bold']),
+                            colored(f'{experiments[i]}', 'black', attrs=['bold']),
+                            colored(' finished.', 'green', attrs=['bold'])
+                        )
 
     def export_power_experiments(self, start_region, end_region=None, path='power.yaml'):
         # Extract VCD intervals
