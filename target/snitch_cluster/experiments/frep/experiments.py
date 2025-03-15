@@ -171,7 +171,7 @@ def main():
     manager.run()
     # TODO: revisit the start and end times, probably makes sense to use the cluster barrier
     # between tiles as a delimiter
-    # manager.export_power_experiments(SimRegion('hart_0', ROI))
+    manager.export_power_experiments(SimRegion('hart_0', ROI))
 
     df = manager.get_results()
     df['size (KiB)'] = df.apply(lambda row: calculate_total_size(row['m'], row['n'], row['k']) / 1024, axis=1)
