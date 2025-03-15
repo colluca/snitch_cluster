@@ -237,23 +237,22 @@ class ExperimentManager:
                     'POWER_REPDIR': experiment['power_dir']
                 }
                 dir = SNITCH_ROOT / 'nonfree'
-                process = common.make('power', vars, dir=dir, dry_run=dry_run)
-                processes.append(process)
+                return common.make('power', vars, dir=dir, dry_run=dry_run)
 
             with ThreadPoolExecutor(max_workers=n_procs) as executor:
                 futures = [executor.submit(run_power, exp) for exp in experiments]
                 for i, future in enumerate(as_completed(futures)):
-                    return_code = future.result()
+                    return_code = future.result().returncode
                     if return_code != 0:
                         raise Exception(
-                            colored('Power estimation ', 'red', attrs=['bold']),
-                            colored(f'{experiments[i]}', 'black', attrs=['bold']),
+                            colored('Power estimation of ', 'red', attrs=['bold']),
+                            colored(f'{experiments[i]["name"]}', 'black', attrs=['bold']),
                             colored(' failed.', 'red', attrs=['bold'])
                         )
                     else:
                         print(
-                            colored('Power estimation ', 'green', attrs=['bold']),
-                            colored(f'{experiments[i]}', 'black', attrs=['bold']),
+                            colored('Power estimation of ', 'green', attrs=['bold']),
+                            colored(f'{experiments[i]["name"]}', 'black', attrs=['bold']),
                             colored(' finished.', 'green', attrs=['bold'])
                         )
 
