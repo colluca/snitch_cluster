@@ -332,7 +332,7 @@ class ExperimentManager:
 
         # Expand the 'axes' column into separate columns
         axes = df['axes'].apply(pd.Series)
-        hw_cfg = pd.Series(axes['hw'].unique())
+        hw_cfg = pd.Series(axes['hw'].unique(),  name="cfg")
 
         # Create AreaResults objects
         if 'AreaResults' in globals():

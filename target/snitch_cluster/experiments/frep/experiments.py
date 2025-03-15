@@ -28,7 +28,7 @@ ROI = 'tile_1'
 POWER_GROUPS = [
     '*i_snitch_shared_muldiv',
     # '*i_snitch_cc',
-    '*i_snitch_fp_ss*',
+    '*i_snitch_fp_ss_i_fpu',
     '*i_idma_inst64*',
     '*i_snitch_icache*',
     '*i_data_mem*',
@@ -39,7 +39,7 @@ POWER_GROUPS = [
 AREA_GROUPS = {
     'muldiv': '*i_snitch_shared_muldiv',
     # '*i_snitch_cc',
-    'fpu': '*i_snitch_fp_ss*',
+    'fpu': '*i_snitch_fp_ss_i_fpu',
     'dma': '*i_idma_inst64*',
     'icache': '*i_snitch_icache*',
     'tcdm': '*i_data_mem*',
@@ -141,12 +141,15 @@ def get_total_power(row):
 
 
 def get_area(row, key):
-    return row['area_results'].cell_area[key]
+    print(row['area_results'].qor_area)
+    return row['area_results'].qor_area[key]
+
 
 def get_hier_area(row, val):
     df = row['area_groups']
-    print(df[df['Name'] == val]['Area'].item())
-    return df[df['Name'] == val]['Area'].item()
+    print(df[df['name'] == val]['area'].item())
+    return df[df['name'] == val]['area'].item()
+
 
 def main():
 
@@ -196,7 +199,7 @@ def main():
 
     df_area = manager.get_area_results()
     if manager.area_results_available:
-        for key in ['TotArea', 'CombArea', 'SeqArea', 'MacroArea', 'BufInvArea']:
+        for key in ['tot_area', 'comb_area', 'seq_area', 'macro_area', 'bufinv_area','net_len']:
             df_area[key] = df_area.apply(lambda row: get_area(row, key), axis=1)
 
         df_area['area_groups'] = df_area.apply(lambda row: row['area_results'].group_area_breakdown(AREA_GROUPS.values()), axis=1)
