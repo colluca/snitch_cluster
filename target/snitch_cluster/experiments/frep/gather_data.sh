@@ -29,6 +29,7 @@ copy_folder() {
 
     echo "Server name: $server_name"
     echo "Scratch name: $scratch_name"
+    echo "HW Cfg: $destination_folder_name"
 
     # Check if the server is reachable via SSH.
     # Check exist code $0 to see if the server exists or is reachable
@@ -43,14 +44,13 @@ copy_folder() {
 
     # Copy synthesis results under the area directory
     echo "Destination folder: area/$destination_folder_name"
+    mkdir -p "./area/${destination_folder_name}"
+    cp -r /usr/${scratch_name}/${server_name}/colluca/workspace/ISLPED/snitch_cluster_final/nonfree/gf12/fusion/runs/0/reports/15/* ./area/${destination_folder_name}
 
-    mkdir -p "./area"
-    cp -r "/usr/${scratch_name}/${server_name}/colluca/workspace/ISLPED/snitch_cluster_final/nonfree/gf12/fusion/runs/0/reports/15" "./area/${destination_folder_name}/"
     # Copy power results under the power directory
     echo "Destination folder: power/$destination_folder_name"
-
-    mkdir -p "./power"
-    cp -r /usr/${scratch_name}/${server_name}/colluca/workspace/ISLPED/snitch_cluster_final/target/snitch_cluster/experiments/frep/power/* ./power/${destination_folder_name}/
+    mkdir -p "./power/${destination_folder_name}"
+    cp -r /usr/${scratch_name}/${server_name}/colluca/workspace/ISLPED/snitch_cluster_final/target/snitch_cluster/experiments/frep/power/${destination_folder_name} ./power/
 
     if [ $? -eq 0 ]; then
       echo "Copy operation completed successfully."
