@@ -69,8 +69,8 @@ copy_folder() {
 # Call the function for all the experiments to collect
 # --------------------------------------------------------
 
-copy_folder larain7  scratch2 zon148dobu
-copy_folder larain5  scratch  zonl64dobu
+# copy_folder larain7  scratch2 zonl48dobu
+# copy_folder larain5  scratch  zonl64dobu
 copy_folder larain4  scratch  zonl64fc
-copy_folder larain3  scratch2 zonl32fc
-copy_folder larain10 scratch  base32fc
+# copy_folder larain3  scratch2 zonl32fc
+# copy_folder larain10 scratch  base32fc

@@ -9,7 +9,6 @@ from copy import deepcopy
 from snitch.target.SimResults import SimRegion
 from snitch.target.experiment_utils import ExperimentManager
 import random
-import pandas as pd
 
 from mako.template import Template
 from pathlib import Path
@@ -25,21 +24,22 @@ HW_CFGS = [
 NUM_TILES = 3
 ROI = 'tile_1'
 
-POWER_GROUPS = [
-    '*i_snitch_shared_muldiv',
-    # '*i_snitch_cc',
-    '*i_snitch_fp_ss_i_fpu',
-    '*i_idma_inst64*',
-    '*i_snitch_icache*',
-    '*i_data_mem*',
-    '*i_axi_dma_xbar',
-    '*i_axi_zeromem',
-]
+POWER_GROUPS = {
+    'muldiv': '*i_snitch_shared_muldiv',
+    'cc': '*i_snitch_cc',
+    'fpu': '*i_snitch_fp_ss_i_fpu',
+    'dma': '*i_idma_inst64*',
+    'icache': '*i_snitch_icache*',
+    'tcdm': '*i_data_mem*',
+    'dma_xbar': '*i_axi_dma_xbar',
+    'zero_mem': '*i_axi_zeromem',
+}
 
 AREA_GROUPS = {
     'muldiv': '*i_snitch_shared_muldiv',
     # '*i_snitch_cc',
     'fpu': '*i_snitch_fp_ss_i_fpu',
+    'fpu_8': 'i_cluster_gen_core_8__i_snitch_cc/gen_fpu_i_snitch_fp_ss_i_fpu',
     'dma': '*i_idma_inst64*',
     'icache': '*i_snitch_icache*',
     'tcdm': '*i_data_mem*',
@@ -136,19 +136,17 @@ def get_average_fpu_util(row):
     return sum(util) / len(util)
 
 
-def get_total_power(row):
-    return row['power_results'].total_power
-
-
 def get_area(row, key):
-    print(row['area_results'].qor_area)
     return row['area_results'].qor_area[key]
 
 
-def get_hier_area(row, val):
+def get_area_component(row, val):
     df = row['area_groups']
-    print(df[df['name'] == val]['area'].item())
     return df[df['name'] == val]['area'].item()
+
+
+def get_power_component(breakdown, pattern):
+    return breakdown[breakdown['name'] == pattern]['total_power'].item()
 
 
 def main():
@@ -174,44 +172,34 @@ def main():
     manager.run()
     # TODO: revisit the start and end times, probably makes sense to use the cluster barrier
     # between tiles as a delimiter
-    manager.export_power_experiments(SimRegion('hart_0', ROI))
+    # manager.export_power_experiments(SimRegion('hart_0', ROI))
 
     df = manager.get_results()
-    df['size (KiB)'] = df.apply(lambda row: calculate_total_size(row['m'], row['n'], row['k']) / 1024, axis=1)
 
     if manager.perf_results_available:
         df['fpu_util'] = df.apply(get_average_fpu_util, axis=1)
-    # print(df)
 
     if manager.power_results_available:
-        df['total_power'] = df.apply(get_total_power, axis=1)
-        # print(df['total_power'])
-        df.to_csv('power.csv', index=False)
-        # breakdown = df.iloc[0]['power_results'].group_power_breakdown(POWER_GROUPS)
-        # print(breakdown)
-        # print(df.iloc[0]['power_results'].total_power)
-        # sum = breakdown['total_power'].sum() + df.iloc[0]['power_results'].clock_power
-        # print(
-        #     breakdown['total_power'].sum(), '+',
-        #     df.iloc[0]['power_results'].clock_power, '=',
-        #     sum
-        # )
+        df['total_power'] = df.apply(lambda row: row['power_results'].total_power, axis=1)
+        df['clock_power'] = df.apply(lambda row: row['power_results'].clock_power, axis=1)
+        breakdowns = df['power_results'].apply(lambda results: results.group_power_breakdown(POWER_GROUPS.values()))
+        for key, val in POWER_GROUPS.items():
+            df[key] = breakdowns.apply(lambda breakdown: get_power_component(breakdown, val))
 
     df_area = manager.get_area_results()
     if manager.area_results_available:
-        for key in ['tot_area', 'comb_area', 'seq_area', 'macro_area', 'bufinv_area','net_len']:
+        for key in ['tot_area', 'comb_area', 'seq_area', 'macro_area', 'bufinv_area', 'net_len']:
             df_area[key] = df_area.apply(lambda row: get_area(row, key), axis=1)
 
         df_area['area_groups'] = df_area.apply(lambda row: row['area_results'].group_area_breakdown(AREA_GROUPS.values()), axis=1)
         for key, val in AREA_GROUPS.items():
-            print(key)
-            df_area[key] = df_area.apply(lambda row: get_hier_area(row, val), axis=1)
+            df_area[key] = df_area.apply(lambda row: get_area_component(row, val), axis=1)
 
-        df_area['area_groups'] = None
-        print(df_area)
+        df_area.drop(labels=['area_results', 'area_groups'], inplace=True, axis=1)
         df_area.to_csv('area.csv', index=False)
 
     # Export results to file
+    df.drop(labels=['results', 'power_results'], inplace=True, axis=1)
     df.to_csv('results.csv', index=False)
 
 
