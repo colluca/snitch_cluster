@@ -128,7 +128,7 @@ void gemm_fp64_opt(uint32_t M, uint32_t N, uint32_t K, void* A_p, uint32_t ldA,
     snrt_ssr_enable();
 
     double c[unroll];
-    snrt_mcycle();
+    // snrt_mcycle();
 
     if (USE_NESTED_FREP) {
         asm volatile (
@@ -208,54 +208,8 @@ void gemm_fp64_opt(uint32_t M, uint32_t N, uint32_t K, void* A_p, uint32_t ldA,
         }
     }
 
-    // // SSR start address need to be configured each time
-    // for (uint32_t m = 0; m < M; m++) {
-        
-    //     snrt_cluster_hw_barrier();
-
-    //     uint32_t n = 0;
-    //     for (uint32_t n0 = 0; n0 < N / unroll; n0++) {
-
-    //         c[0] = 0.0;
-    //         c[1] = 0.0;
-    //         c[2] = 0.0;
-    //         c[3] = 0.0;
-    //         c[4] = 0.0;
-    //         c[5] = 0.0;
-    //         c[6] = 0.0;
-    //         c[7] = 0.0;
-    //         asm volatile(
-    //             //"csrr x0, 0x7C2 \n" 
-    //             "frep.o %[n_frep], %[unroll], 0, 0 \n"
-    //             "fmadd.d %[c0], ft0, ft1, %[c0] \n"
-    //             "fmadd.d %[c1], ft0, ft1, %[c1] \n"
-    //             "fmadd.d %[c2], ft0, ft1, %[c2] \n"
-    //             "fmadd.d %[c3], ft0, ft1, %[c3] \n"
-    //             "fmadd.d %[c4], ft0, ft1, %[c4] \n"
-    //             "fmadd.d %[c5], ft0, ft1, %[c5] \n"
-    //             "fmadd.d %[c6], ft0, ft1, %[c6] \n"
-    //             "fmadd.d %[c7], ft0, ft1, %[c7] \n"
-    //             : [ c0 ] "+f"(c[0]), [ c1 ] "+f"(c[1]), [ c2 ] "+f"(c[2]),
-    //               [ c3 ] "+f"(c[3]), [ c4 ] "+f"(c[4]), [ c5 ] "+f"(c[5]),
-    //               [ c6 ] "+f"(c[6]), [ c7 ] "+f"(c[7])
-    //             : [ n_frep ] "r"(K - 1), [ unroll ] "i"(unroll)
-    //             : "ft0", "ft1", "ft2");
-
-    //         // Store results back
-    //         C[m * ldC/elements_per_line*HYPERBANK_WIDTH/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_WIDTH/8  + 0] = c[0];
-    //         C[m * ldC/elements_per_line*HYPERBANK_WIDTH/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_WIDTH/8  + 1] = c[1];
-    //         C[m * ldC/elements_per_line*HYPERBANK_WIDTH/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_WIDTH/8  + 2] = c[2];
-    //         C[m * ldC/elements_per_line*HYPERBANK_WIDTH/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_WIDTH/8  + 3] = c[3];
-    //         C[m * ldC/elements_per_line*HYPERBANK_WIDTH/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_WIDTH/8  + 4] = c[4];
-    //         C[m * ldC/elements_per_line*HYPERBANK_WIDTH/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_WIDTH/8  + 5] = c[5];
-    //         C[m * ldC/elements_per_line*HYPERBANK_WIDTH/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_WIDTH/8  + 6] = c[6];
-    //         C[m * ldC/elements_per_line*HYPERBANK_WIDTH/8 + n%(elements_per_line) + (n/elements_per_line)*HYPERBANK_WIDTH/8  + 7] = c[7];
-    //         n += unroll;
-    //     }
-    // }
-
     snrt_fpu_fence();
-    snrt_mcycle();
+    // snrt_mcycle();
 
     snrt_ssr_disable();
 

@@ -126,7 +126,7 @@ class GemmDataGen(du.DataGen):
         header += [du.format_array_declaration(ctype, a_uid, a.shape)]
         header += [du.format_array_declaration(ctype, b_uid, b.shape)]
         header += [du.format_array_declaration(ctype, c_uid, c.shape)]
-        header += [du.format_struct_definition('gemm_args_t', 'args', cfg)]
+        header += [du.format_struct_definition('const gemm_args_t', 'args', cfg)]
         header += [du.format_array_definition(ctype, a_uid, a,
                                               section=kwargs['section'])]
         header += [du.format_array_definition(ctype, b_uid, b,

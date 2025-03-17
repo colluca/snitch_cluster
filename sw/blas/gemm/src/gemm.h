@@ -142,31 +142,33 @@ static inline void sc_st_gemm(gemm_args_t* gemm_args, void* a, void* b,
 // m_tiles: number of tiles in M dimension
 // k_tiles: number of tiles in K dimension
 // n_tiles: number of tiles in N dimension
-int gemm(gemm_args_t* args) {
+static inline int gemm(const gemm_args_t* args) {
 
-    gemm_args_t* local_args = snrt_l1_next();
+    // gemm_args_t* local_args = snrt_l1_next();
+    gemm_args_t local_args;
 
-    // Copy the arguments to local memory
-    if (snrt_is_dm_core()) {
-        snrt_dma_start_1d(local_args, args, sizeof(gemm_args_t));
-        snrt_dma_wait_all();
-    }
-    snrt_cluster_hw_barrier();
+    // // Copy the arguments to local memory
+    // if (snrt_is_dm_core()) {
+    //     snrt_dma_start_1d(local_args, args, sizeof(gemm_args_t));
+    //     snrt_dma_wait_all();
+    // }
+    // snrt_cluster_hw_barrier();
+    local_args = *args;
 
-    uint32_t m = local_args->M;
-    uint32_t n = local_args->N;
-    uint32_t k = local_args->K;
-    precision_t prec = (precision_t)local_args->prec;
-    uint32_t setup_ssr = local_args->setup_ssr;
-    uint32_t m_tiles = local_args->m_tiles;
-    uint32_t n_tiles = local_args->n_tiles;
-    uint32_t transa = local_args->transa;
-    uint32_t transb = local_args->transb;
-    double alpha = local_args->alpha;
-    void* a = local_args->a;
-    void* b = local_args->b;
-    uint32_t beta = local_args->beta;
-    void* c = local_args->c;
+    uint32_t m = local_args.M;
+    uint32_t n = local_args.N;
+    uint32_t k = local_args.K;
+    precision_t prec = (precision_t)local_args.prec;
+    uint32_t setup_ssr = local_args.setup_ssr;
+    uint32_t m_tiles = local_args.m_tiles;
+    uint32_t n_tiles = local_args.n_tiles;
+    uint32_t transa = local_args.transa;
+    uint32_t transb = local_args.transb;
+    double alpha = local_args.alpha;
+    void* a = local_args.a;
+    void* b = local_args.b;
+    uint32_t beta = local_args.beta;
+    void* c = local_args.c;
 
     // Calculate tile sizes
     uint32_t frac_m = m / m_tiles;
@@ -183,7 +185,8 @@ int gemm(gemm_args_t* args) {
     void *local_b[2];
     void *local_c[2];
 
-    void* heap_ptr = (void*)(ALIGN_UP_TCDM((int)local_args + sizeof(gemm_args_t)));
+    // void* heap_ptr = (void*)(ALIGN_UP_TCDM((int)&local_args + sizeof(gemm_args_t)));
+    void* heap_ptr = snrt_l1_next();
     int banks_per_buffer = snrt_cluster_compute_core_num();
 
     // The A, B and C buffers are stored in separate banks.
@@ -277,9 +280,11 @@ int gemm(gemm_args_t* args) {
                 if (transb) {
                     ldb = frac_k;
                 }
-                sc_st_gemm(local_args, local_a[buff_idx], local_b[buff_idx], beta,
+                if (i_compute != 0) local_args.setup_ssr = 0;
+                snrt_mcycle();
+                sc_st_gemm(&local_args, local_a[buff_idx], local_b[buff_idx], beta,
                            local_c[buff_idx]);
-
+                snrt_mcycle();
             }
         }
 
