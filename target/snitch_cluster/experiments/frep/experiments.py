@@ -13,7 +13,7 @@ import random
 from mako.template import Template
 from pathlib import Path
 
-NUM_GEMM_SIZES = 50
+NUM_GEMM_SIZES = 100
 HW_CFGS = [
     'base32fc',
     'zonl32fc',
@@ -107,9 +107,9 @@ def gen_experiments():
     BANK_SIZE = 1 * 1024  # 2KiB
     MAX_ALLOWED_SIZE = 8 * BANK_SIZE  # Every matrix can take up maximum 8 banks
 
-    experiments = []
+    unique_experiments = set()
     # TODO: filter repeated experiments
-    while len(experiments) < NUM_GEMM_SIZES:
+    while len(unique_experiments) < NUM_GEMM_SIZES:
         # generate random values in [8, 16, 24, ..., 256] for m, n, k
         m = generate_mat_size()
         n = generate_mat_size()
@@ -123,9 +123,12 @@ def gen_experiments():
         c_size = m * n * prec
         max_size = max(a_size, b_size, c_size)
 
-        if max_size < MAX_ALLOWED_SIZE:
-            experiments.append({'m': m, 'n': n, 'k': k})
+        if max_size <= MAX_ALLOWED_SIZE:
+            experiment = (m, n, k)
+            if experiment not in unique_experiments:
+                unique_experiments.add((m, n, k))
 
+    experiments = [{'m': experiment[0], 'n': experiment[1], 'k': experiment[2]} for experiment in unique_experiments]
     return experiments
 
 
@@ -200,6 +203,7 @@ def main():
 
     # Export results to file
     df.drop(labels=['results', 'power_results'], inplace=True, axis=1)
+    print(df)
     df.to_csv('results.csv', index=False)
 
 
