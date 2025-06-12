@@ -13,7 +13,7 @@ import random
 from mako.template import Template
 from pathlib import Path
 
-NUM_GEMM_SIZES = 100
+NUM_GEMM_SIZES = 50
 HW_CFGS = [
     'base32fc',
     'zonl32fc',
@@ -28,6 +28,7 @@ POWER_GROUPS = {
     'muldiv': '*i_snitch_shared_muldiv',
     'cc': '*i_snitch_cc',
     'fpu': '*i_snitch_fp_ss_i_fpu',
+    'fpu_8': '*i_cluster_gen_core_8__i_snitch_cc_gen_fpu_i_snitch_fp_ss_i_fpu',
     'dma': '*i_idma_inst64*',
     'icache': '*i_snitch_icache*',
     'tcdm': '*i_data_mem*',
@@ -37,12 +38,14 @@ POWER_GROUPS = {
 
 AREA_GROUPS = {
     'muldiv': '*i_snitch_shared_muldiv',
-    # '*i_snitch_cc',
+    'cc': '*i_snitch_cc',
     'fpu': '*i_snitch_fp_ss_i_fpu',
     'fpu_8': 'i_cluster_gen_core_8__i_snitch_cc/gen_fpu_i_snitch_fp_ss_i_fpu',
     'dma': '*i_idma_inst64*',
     'icache': '*i_snitch_icache*',
     'tcdm': '*i_data_mem*',
+    'dma_xbar': '*i_axi_dma_xbar',
+    'zero_mem': '*i_axi_zeromem',
 }
 
 
@@ -107,9 +110,9 @@ def gen_experiments():
     BANK_SIZE = 1 * 1024  # 2KiB
     MAX_ALLOWED_SIZE = 8 * BANK_SIZE  # Every matrix can take up maximum 8 banks
 
-    unique_experiments = set()
+    experiments = []
     # TODO: filter repeated experiments
-    while len(unique_experiments) < NUM_GEMM_SIZES:
+    while len(experiments) < NUM_GEMM_SIZES:
         # generate random values in [8, 16, 24, ..., 256] for m, n, k
         m = generate_mat_size()
         n = generate_mat_size()
@@ -123,12 +126,9 @@ def gen_experiments():
         c_size = m * n * prec
         max_size = max(a_size, b_size, c_size)
 
-        if max_size <= MAX_ALLOWED_SIZE:
-            experiment = (m, n, k)
-            if experiment not in unique_experiments:
-                unique_experiments.add((m, n, k))
+        if max_size < MAX_ALLOWED_SIZE:
+            experiments.append({'m': m, 'n': n, 'k': k})
 
-    experiments = [{'m': experiment[0], 'n': experiment[1], 'k': experiment[2]} for experiment in unique_experiments]
     return experiments
 
 
@@ -199,6 +199,7 @@ def main():
             df_area[key] = df_area.apply(lambda row: get_area_component(row, val), axis=1)
 
         df_area.drop(labels=['area_results', 'area_groups'], inplace=True, axis=1)
+        print(df_area)
         df_area.to_csv('area.csv', index=False)
 
     # Export results to file
